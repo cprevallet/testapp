@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+fitparser = "0.10.0"
 gtk4 = "0.10.2"
 plotters = "0.3.7"
 plotters-cairo = "0.8.0"

@@ -1,9 +1,9 @@
 use gtk4::prelude::*;
-use gtk4::{gdk, Application, ApplicationWindow, DrawingArea, Frame, Orientation};
+use gtk4::{Application, ApplicationWindow, DrawingArea, Frame, Orientation, gdk};
 use libshumate::prelude::*;
 use plotters::prelude::*;
 //use gtk4::glib::clone;
-use fitparser::{profile::field_types::MesgNum, FitDataRecord};
+use fitparser::{FitDataRecord, profile::field_types::MesgNum};
 use libshumate::{Coordinate, PathLayer, SimpleMap};
 use std::fs::File;
 
@@ -247,23 +247,22 @@ fn build_da() -> DrawingArea {
     return drawing_area;
 }
 
+fn semi_to_degrees(semi: f32) -> f64 {
+    let factor: f64 = 2i64.pow(31u32) as f64;
+    let deg_val: f64 = semi as f64 * 180f64 / factor;
+    return deg_val;
+}
+
 // Adds a PathLayer with a path of given coordinates to the map.
-fn add_path_layer_to_map(map: &SimpleMap) {
+fn add_path_layer_to_map(map: &SimpleMap, path_points: Vec<(f32, f32)>) {
     // Define the RGBA color using the builder pattern for gtk4::gdk::RGBA
     let blue = gdk::RGBA::parse("blue").expect("Failed to parse color");
     let viewport = map.viewport().expect("No viewport.");
     let path_layer = libshumate::PathLayer::new(&viewport);
     path_layer.set_stroke_color(Some(&blue));
     path_layer.set_stroke_width(3.0); // Thickness in pixels
-                                      // Define coordinates
-    let path_points = vec![
-        (34.0522, -118.2437), // Los Angeles
-        (37.7749, -122.4194), // San Francisco
-        (40.7128, -74.0060),  // New York
-    ];
-    // Add nodes to the path layer
     for (lat, lon) in path_points {
-        let coord = Coordinate::new_full(lat, lon);
+        let coord = Coordinate::new_full(semi_to_degrees(lat), semi_to_degrees(lon));
         path_layer.add_node(&coord);
     }
     // Add the layer to the map
@@ -277,13 +276,19 @@ fn build_map() -> SimpleMap {
         .by_id("osm-mapnik")
         .expect("Could not retrieve map source.");
     map.set_map_source(Some(&source));
+    // Get values from fit file.
+    let mut run_path: Vec<(f32, f32)> = Vec::new();
+    //println!("Parsing FIT files using Profile version: {:?}", fitparser::profile::VERSION);
+    let mut fp = File::open(FIT_FILE_NAME).expect("file not found");
+    if let Ok(data) = fitparser::from_reader(&mut fp) {
+        run_path = get_xy(data, "position_lat", "position_long");
+    }
     // Call the function to add the path layer
-    add_path_layer_to_map(&map);
+    add_path_layer_to_map(&map, run_path);
     let viewport = map.viewport().expect("Couldn't get viewport.");
     // You may want to set an initial center and zoom level.
     viewport.set_location(29.7601, -95.3701); // e.g. Houston, USA
-    viewport.set_zoom_level(6.0);
-    add_path_layer_to_map(&map);
+    viewport.set_zoom_level(9.0);
     return map;
 }
 

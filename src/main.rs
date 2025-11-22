@@ -1,9 +1,9 @@
 use gtk4::prelude::*;
-use gtk4::{Application, ApplicationWindow, DrawingArea, Frame, Orientation};
+use gtk4::{gdk, Application, ApplicationWindow, DrawingArea, Frame, Orientation};
 use libshumate::prelude::*;
 use plotters::prelude::*;
 //use gtk4::glib::clone;
-use fitparser::{FitDataRecord, profile::field_types::MesgNum};
+use fitparser::{profile::field_types::MesgNum, FitDataRecord};
 use libshumate::{Coordinate, PathLayer, SimpleMap};
 use std::fs::File;
 
@@ -247,36 +247,25 @@ fn build_da() -> DrawingArea {
     return drawing_area;
 }
 
-/// Adds a PathLayer with a path of given coordinates to the map.
+// Adds a PathLayer with a path of given coordinates to the map.
 fn add_path_layer_to_map(map: &SimpleMap) {
-    // 1. Define the RGBA color using the builder pattern for gtk4::gdk::RGBA
-    let red_color = gtk4::gdk::RGBA::builder()
-        .red(1.0)
-        .green(0.0)
-        .blue(0.0)
-        .alpha(1.0)
-        .build();
-
-    // 2. Create the PathLayer using its builder() method and set properties
-    let path_layer = PathLayer::builder()
-        .stroke(true) // Enable drawing the line
-        .stroke_width(6.0) // Set line thickness to 6 pixels
-        .stroke_color(&red_color) // Set the line color to Red
-        .build();
-
-    // Define coordinates
+    // Define the RGBA color using the builder pattern for gtk4::gdk::RGBA
+    let blue = gdk::RGBA::parse("blue").expect("Failed to parse color");
+    let viewport = map.viewport().expect("No viewport.");
+    let path_layer = libshumate::PathLayer::new(&viewport);
+    path_layer.set_stroke_color(Some(&blue));
+    path_layer.set_stroke_width(3.0); // Thickness in pixels
+                                      // Define coordinates
     let path_points = vec![
         (34.0522, -118.2437), // Los Angeles
         (37.7749, -122.4194), // San Francisco
         (40.7128, -74.0060),  // New York
     ];
-
     // Add nodes to the path layer
     for (lat, lon) in path_points {
         let coord = Coordinate::new_full(lat, lon);
         path_layer.add_node(&coord);
     }
-
     // Add the layer to the map
     map.add_overlay_layer(&path_layer);
 }
@@ -293,7 +282,7 @@ fn build_map() -> SimpleMap {
     let viewport = map.viewport().expect("Couldn't get viewport.");
     // You may want to set an initial center and zoom level.
     viewport.set_location(29.7601, -95.3701); // e.g. Houston, USA
-    viewport.set_zoom_level(10.0);
+    viewport.set_zoom_level(6.0);
     add_path_layer_to_map(&map);
     return map;
 }

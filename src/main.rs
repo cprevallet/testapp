@@ -1,8 +1,10 @@
 use gtk4::prelude::*;
-use gtk4::{Application, ApplicationWindow, DrawingArea};
+use gtk4::{Application, ApplicationWindow, DrawingArea, Frame, Orientation};
 use plotters::prelude::*;
+//use shumate::prelude::*;
 //use gtk4::glib::clone;
 use fitparser::{FitDataRecord, profile::field_types::MesgNum};
+use shumate::Map;
 use std::fs::File;
 
 // Only God and I knew what this was doing when I wrote it.
@@ -149,14 +151,8 @@ fn get_xy(data: Vec<FitDataRecord>, x_field_name: &str, y_field_name: &str) -> V
     return xy_pairs;
 }
 
-// Create the GUI.
-fn build_gui(app: &Application) {
-    let win = ApplicationWindow::builder()
-        .application(app)
-        .default_width(1024)
-        .default_height(768)
-        .title("Test")
-        .build();
+// Build drawing area.
+fn build_da() -> DrawingArea {
     let drawing_area: DrawingArea = DrawingArea::builder().build();
     // Get values from fit file.
     let mut plotvals: Vec<(f32, f32)> = Vec::new();
@@ -248,6 +244,44 @@ fn build_gui(app: &Application) {
         let _ = root.present();
         // --- Custom Drawing Logic Ends Here ---
     });
-    win.set_child(Some(&drawing_area));
+    return drawing_area;
+}
+
+// Build the map.
+fn build_map() -> Map {
+    return Map::new_simple();
+}
+
+// Create the GUI.
+fn build_gui(app: &Application) {
+    let win = ApplicationWindow::builder()
+        .application(app)
+        .default_width(1024)
+        .default_height(768)
+        .title("Test")
+        .build();
+    let da = build_da();
+    let shumate_map = build_map();
+    // Frame 1: Controls
+    let frame_left = Frame::builder()
+        .label("Frame 1: Controls")
+        .child(&shumate_map)
+        //        .margin_all(5)
+        .build();
+    // Frame 2: Drawing Output
+    let frame_right = Frame::builder()
+        .label("Frame 2: Drawing Area")
+        .child(&da)
+        //        .margin_all(5)
+        .build();
+    // Main horizontal container to hold the two frames side-by-side
+    let main_box = gtk4::Box::new(Orientation::Horizontal, 10);
+    main_box.set_homogeneous(true); // Ensures both frames take exactly half the window width
+    main_box.append(&frame_left);
+    main_box.append(&frame_right);
+    win.set_child(Some(&main_box));
+    //win.set_child(Some(&da));
+    // win.set_child(Some(&shumate_map));
+    //    win.set_child(Some(&shumate_map));
     win.present();
 }

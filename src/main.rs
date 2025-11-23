@@ -232,25 +232,25 @@ fn build_da(data: &Vec<FitDataRecord>) -> DrawingArea {
             if idx == 1 {}
             let mut chart = ChartBuilder::on(&a)
                 // Set the caption of the chart
-                .caption(pd.caption, ("sans-serif", 40).into_font())
+                .caption(caption, ("sans-serif", 40).into_font())
                 // Set the size of the label region
                 .x_label_area_size(100)
                 .y_label_area_size(100)
                 // Finally attach a coordinate on the drawing area and make a chart context
-                .build_cartesian_2d(pd.plot_range.clone().0, pd.plot_range.clone().1)
+                .build_cartesian_2d(plot_range.clone().0, plot_range.clone().1)
                 .unwrap();
             let _ = chart
                 .configure_mesh()
                 // We can customize the maximum number of labels allowed for each axis
-                .x_labels(15)
+                .x_labels(5)
                 .y_labels(5)
-                .x_desc(pd.xlabel)
-                .y_desc(pd.ylabel)
+                .x_desc(xlabel)
+                .y_desc(ylabel)
                 .y_label_formatter(&pd.y_formatter)
                 .draw();
             // // And we can draw something in the drawing area
             // We need to clone plotvals each time we make a call to LineSeries and PointSeries
-            let _ = chart.draw_series(LineSeries::new(pd.plotvals.clone(), &RED));
+            let _ = chart.draw_series(LineSeries::new(plotvals.clone(), &RED));
         }
 
         let _ = root.present();

@@ -403,32 +403,33 @@ fn build_gui(app: &Application) {
         native.show();
     });
 
-    // 1. Get the default display (connection to the window server)
-    if let Some(display) = Display::default() {
-        // 2. Get the list of monitors (returns a ListModel)
-        let monitors = display.monitors();
+    // // 1. Get the default display (connection to the window server)
+    // if let Some(display) = Display::default() {
+    //     // 2. Get the list of monitors (returns a ListModel)
+    //     let monitors = display.monitors();
 
-        // 3. We typically want the first monitor (primary)
-        // Note: In a multi-monitor setup, you might want to find which monitor
-        // the window is actually on, but during "build_ui", the window isn't visible yet.
-        if let Some(monitor_obj) = monitors.item(0) {
-            // Downcast the generic object to a GdkMonitor
-            if let Ok(monitor) = monitor_obj.downcast::<gdk::Monitor>() {
-                // 4. Get geometry (x, y, width, height)
-                let geometry = monitor.geometry();
+    //     // 3. We typically want the first monitor (primary)
+    //     // Note: In a multi-monitor setup, you might want to find which monitor
+    //     // the window is actually on, but during "build_ui", the window isn't visible yet.
+    //     if let Some(monitor_obj) = monitors.item(0) {
+    //         // Downcast the generic object to a GdkMonitor
+    //         if let Ok(monitor) = monitor_obj.downcast::<gdk::Monitor>() {
+    //             // 4. Get geometry (x, y, width, height)
+    //             let geometry = monitor.geometry();
 
-                let target_width = (geometry.width() as f64 * 0.80) as i32;
-                let target_height = (geometry.height() as f64 * 0.80) as i32;
+    //             let target_width = (geometry.width() as f64 * 0.80) as i32;
+    //             let target_height = (geometry.height() as f64 * 0.80) as i32;
 
-                // 5. Apply the size request
-                win.set_width_request(target_width);
-                win.set_height_request(target_height);
+    //             // 5. Apply the size request
+    //             // win.set_width_request(target_width);
+    //             // win.set_height_request(target_height);
+    //             win.set_default_size(target_width, target_height);
 
-                println!("Screen: {}x{}", geometry.width(), geometry.height());
-                println!("Box set to: {}x{}", target_width, target_height);
-            }
-        }
-    }
+    //             println!("Screen: {}x{}", geometry.width(), geometry.height());
+    //             println!("Win set to: {}x{}", target_width, target_height);
+    //         }
+    //     }
+    // }
     main_box.append(&frame_left);
     main_box.append(&frame_right);
     main_box.set_homogeneous(true); // Ensures both frames take exactly half the window width

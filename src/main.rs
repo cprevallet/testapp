@@ -7,7 +7,7 @@ use gtk4::{
 use libshumate::prelude::*;
 use plotters::prelude::*;
 //use gtk4::glib::clone;
-use fitparser::{FitDataRecord, profile::field_types::MesgNum};
+use fitparser::{FitDataRecord, Value, profile::field_types::MesgNum};
 use libshumate::{Coordinate, PathLayer, SimpleMap};
 use plotters::style::full_palette::BROWN;
 use plotters::style::full_palette::CYAN;
@@ -135,6 +135,110 @@ fn get_msg_record_field_as_vec(data: Vec<FitDataRecord>, field_name: &str) -> Ve
         }
     }
     return field_vals;
+}
+
+// Per Google Gemini AI
+/// Helper to convert various numeric Value variants to f64
+/*
+fn extract_f64(value: &Value) -> Option<f64> {
+    match value {
+        Value::Float64(v) => Some(*v),
+        Value::Float32(v) => Some(*v as f64),
+        Value::UInt8(v) => Some(*v as f64),
+        Value::UInt16(v) => Some(*v as f64),
+        Value::UInt32(v) => Some(*v as f64),
+        Value::UInt64(v) => Some(*v as f64),
+        Value::SInt8(v) => Some(*v as f64),
+        Value::SInt16(v) => Some(*v as f64),
+        Value::SInt32(v) => Some(*v as f64),
+        Value::SInt64(v) => Some(*v as f64),
+        _ => None,
+    }
+}
+*/
+
+// 1. Define a trait for types that can be extracted from a FIT Value
+pub trait FromFitValue: Sized {
+    fn from_value(v: &Value) -> Option<Self>;
+}
+
+// 2. Implement the trait for the types you care about (e.g., f64)
+impl FromFitValue for f64 {
+    fn from_value(v: &Value) -> Option<Self> {
+        match v {
+            Value::Float64(f) => Some(*f),
+            Value::Float32(f) => Some(*f as f64),
+            Value::UInt8(u) => Some(*u as f64),
+            Value::UInt16(u) => Some(*u as f64),
+            Value::UInt32(u) => Some(*u as f64),
+            Value::SInt8(i) => Some(*i as f64),
+            Value::SInt16(i) => Some(*i as f64),
+            Value::SInt32(i) => Some(*i as f64),
+            _ => None, // Handle non-numeric types by ignoring them
+        }
+    }
+}
+
+// 3. Implement for other types (e.g., i64) as needed
+impl FromFitValue for i64 {
+    fn from_value(v: &Value) -> Option<Self> {
+        match v {
+            Value::SInt64(i) => Some(*i),
+            Value::SInt32(i) => Some(*i as i64),
+            Value::UInt32(u) => Some(*u as i64),
+            Value::UInt8(u) => Some(*u as i64),
+            _ => None,
+        }
+    }
+}
+
+// 4. The Generic Helper Function
+pub fn extract_vec<T: FromFitValue>(value: &Value) -> Vec<T> {
+    match value {
+        // Case A: Standard Array of Values
+        Value::Array(arr) => arr.iter().filter_map(T::from_value).collect(),
+
+        // Case B: Byte Array (Special optimization in FIT files)
+        // Value::Byte(bytes) => {
+        //     // We treat bytes as UInt8 scalars to convert them to T
+        //     bytes
+        //         .iter()
+        //         .filter_map(|&b| T::from_value(&Value::UInt8(b)))
+        //         .collect()
+        // }
+
+        // Case C: Scalar (Single value treated as 1-item array)
+        scalar => {
+            if let Some(val) = T::from_value(scalar) {
+                vec![val]
+            } else {
+                Vec::new()
+            }
+        }
+    }
+}
+
+// Return a time for heart rate in the time_in_zone record.
+fn get_time_in_zone_field(data: &Vec<FitDataRecord>) -> Option<Vec<f64>> {
+    //fn get_time_in_zone_field(data: &Vec<FitDataRecord>) {
+    let mut result: Option<Vec<f64>> = None;
+    for item in data {
+        match item.kind() {
+            // Individual msgnum::records
+            MesgNum::TimeInZone => {
+                // Retrieve the FitDataField struct.
+                for fld in item.fields().iter() {
+                    if fld.name() == "reference_mesg" && fld.value().to_string() == "session" {
+                        let floats: Vec<f64> = extract_vec(item.fields()[2].value());
+                        //println!("{:?}", floats);
+                        result = Some(floats);
+                    }
+                }
+            }
+            _ => (), // matches other patterns
+        }
+    }
+    return result;
 }
 
 // Convert speed (m/s) to pace(min/mile)
@@ -421,10 +525,7 @@ fn build_summary(data: &Vec<FitDataRecord>, text_buffer: &TextBuffer) {
     let mut end = text_buffer.end_iter();
     text_buffer.delete(&mut start, &mut end);
     let mut lap_index: u8 = 0;
-    let mut lap_str = format!(
-        "------------------------------ Lap {}--------------------------------\n",
-        lap_index
-    );
+    let mut lap_str: String;
     for item in data {
         match item.kind() {
             MesgNum::Session | MesgNum::Lap => {
@@ -532,6 +633,22 @@ fn build_summary(data: &Vec<FitDataRecord>, text_buffer: &TextBuffer) {
             _ => print!("{}", ""), // matches other patterns
         }
     }
+    if let Some(zone_times) = get_time_in_zone_field(data) {
+        text_buffer.insert(&mut end, "\n");
+        text_buffer.insert(
+            &mut end,
+            "=================== Time in Heart Rate Zones for Session  ========\n",
+        );
+        for (z, val) in zone_times.iter().enumerate() {
+            let val_cvt = cvt_elapsed_time(*val as f32);
+            let value_str = format!(
+                "{:<5}{:<35}: {:01}h:{:02}m:{:02}s\n",
+                "Zone", z, val_cvt.0, val_cvt.1, val_cvt.2
+            );
+            text_buffer.insert(&mut end, &value_str);
+        }
+        text_buffer.insert(&mut end, "\n");
+    };
 }
 
 // Find out how many pixels we have to work with.

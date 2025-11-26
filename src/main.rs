@@ -219,9 +219,9 @@ pub fn extract_vec<T: FromFitValue>(value: &Value) -> Vec<T> {
 }
 
 // Return a time for heart rate in the time_in_zone record.
-fn get_time_in_zone_field(data: &Vec<FitDataRecord>) -> Option<Vec<f64>> {
+fn get_time_in_zone_field(data: &Vec<FitDataRecord>) -> (Option<Vec<f64>>, Option<Vec<f64>>) {
     //fn get_time_in_zone_field(data: &Vec<FitDataRecord>) {
-    let mut result: Option<Vec<f64>> = None;
+    let mut result: (Option<Vec<f64>>, Option<Vec<f64>>) = (None, None);
     for item in data {
         match item.kind() {
             // Individual msgnum::records
@@ -230,8 +230,9 @@ fn get_time_in_zone_field(data: &Vec<FitDataRecord>) -> Option<Vec<f64>> {
                 for fld in item.fields().iter() {
                     if fld.name() == "reference_mesg" && fld.value().to_string() == "session" {
                         let floats: Vec<f64> = extract_vec(item.fields()[2].value());
+                        let hr_limits: Vec<f64> = extract_vec(item.fields()[3].value());
                         //println!("{:?}", floats);
-                        result = Some(floats);
+                        result = (Some(floats), Some(hr_limits));
                     }
                 }
             }
@@ -633,7 +634,8 @@ fn build_summary(data: &Vec<FitDataRecord>, text_buffer: &TextBuffer) {
             _ => print!("{}", ""), // matches other patterns
         }
     }
-    if let Some(zone_times) = get_time_in_zone_field(data) {
+    if let (Some(zone_times), Some(zone_limits)) = get_time_in_zone_field(data) {
+        // There are 7 zones but only 6 upper limits.
         text_buffer.insert(&mut end, "\n");
         text_buffer.insert(
             &mut end,
@@ -641,9 +643,23 @@ fn build_summary(data: &Vec<FitDataRecord>, text_buffer: &TextBuffer) {
         );
         for (z, val) in zone_times.iter().enumerate() {
             let val_cvt = cvt_elapsed_time(*val as f32);
+            let mut ll: f64;
+            let mut ul: f64;
+            if z == 0 {
+                ll = 0.0;
+                ul = zone_limits[z];
+            } else if z < zone_limits.len() && z > 0 {
+                // ll = zone_limits[z];
+                // ul = zone_limits[z - 1];
+                ll = zone_limits[z - 1];
+                ul = zone_limits[z];
+            } else {
+                ll = zone_limits[z - 1];
+                ul = 220.0;
+            }
             let value_str = format!(
-                "{:<5}{:<35}: {:01}h:{:02}m:{:02}s\n",
-                "Zone", z, val_cvt.0, val_cvt.1, val_cvt.2
+                "{:<5}{:<35}({:?}-{:?} bpm): {:01}h:{:02}m:{:02}s\n",
+                "Zone", z, ll, ul, val_cvt.0, val_cvt.1, val_cvt.2
             );
             text_buffer.insert(&mut end, &value_str);
         }

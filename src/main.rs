@@ -2,7 +2,8 @@ use gtk4::gdk::Display;
 use gtk4::prelude::*;
 use gtk4::{
     Application, ApplicationWindow, Button, DrawingArea, FileChooserAction, FileChooserNative,
-    Frame, Label, Orientation, ResponseType, ScrolledWindow, TextBuffer, TextView, gdk,
+    Frame, Label, Orientation, ResponseType, ScrolledWindow, TextBuffer, TextView,
+    gdk,
 };
 use libshumate::prelude::*;
 use plotters::prelude::*;
@@ -710,9 +711,32 @@ fn build_gui(app: &Application) {
     let main_box = gtk4::Box::new(Orientation::Horizontal, 10);
     let inner_box = gtk4::Box::new(Orientation::Vertical, 10);
     let text_view = TextView::builder().build();
+
+    // All this to set a background color!
+    // Text appears whited out when this is applied.  Let's keep the code around for now.
+    // Define the CSS with a Class ---
+    /*
+    const CSS_DATA: &str = "
+        /* Target the text node of any element with the class 'my-custom-bg' */
+        .my-custom-bg text {
+    background-color: #e0e0e0; /* Light Gray Text */
+    color: #0044e0; /* Dark Green Background */
+        }
+    ";
+    // Load and Apply the CSS Provider ---
+    let provider = gtk4::CssProvider::new();
+    provider.load_from_data(CSS_DATA);
+    // Apply the CSS globally to the default display
+    StyleContext::add_provider_for_display(
+        &Display::default().expect("Could not get display"),
+        &provider,
+        gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
+    );
+    text_view.add_css_class("my-custom-bg");
+    */
+    
     text_view.set_monospace(true);
     let text_buffer = text_view.buffer();
-
     main_box.set_vexpand(true);
     main_box.set_hexpand(true);
     let frame_left = Frame::builder().build();

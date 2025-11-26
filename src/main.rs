@@ -641,16 +641,15 @@ fn build_summary(data: &Vec<FitDataRecord>, text_buffer: &TextBuffer) {
             &mut end,
             "=================== Time in Heart Rate Zones for Session  ========\n",
         );
+        text_buffer.insert(&mut end, "\n");
         for (z, val) in zone_times.iter().enumerate() {
             let val_cvt = cvt_elapsed_time(*val as f32);
-            let mut ll: f64;
-            let mut ul: f64;
+            let ll: f64;
+            let ul: f64;
             if z == 0 {
                 ll = 0.0;
                 ul = zone_limits[z];
             } else if z < zone_limits.len() && z > 0 {
-                // ll = zone_limits[z];
-                // ul = zone_limits[z - 1];
                 ll = zone_limits[z - 1];
                 ul = zone_limits[z];
             } else {
@@ -658,8 +657,8 @@ fn build_summary(data: &Vec<FitDataRecord>, text_buffer: &TextBuffer) {
                 ul = 220.0;
             }
             let value_str = format!(
-                "{:<5}{:<35}({:?}-{:?} bpm): {:01}h:{:02}m:{:02}s\n",
-                "Zone", z, ll, ul, val_cvt.0, val_cvt.1, val_cvt.2
+                "{:<5}{:<} ({:>3}-{:>3} bpm): {:01}h:{:02}m:{:02}s\n",
+                "Zone", z, ll as i32, ul as i32, val_cvt.0, val_cvt.1, val_cvt.2
             );
             text_buffer.insert(&mut end, &value_str);
         }

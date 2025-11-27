@@ -487,10 +487,8 @@ fn build_da(data: &Vec<FitDataRecord>) -> DrawingArea {
     let drawing_area: DrawingArea = DrawingArea::builder().build();
     // Need to clone to use inside the closure.
     let d = data.clone();
-    let zx = 1.0;
-    let zoom_x = zx.clone();
-    let zy = 1.0;
-    let zoom_y = zy.clone();
+    let zoom_x = 1.0;
+    let zoom_y = 1.0;
     drawing_area.set_draw_func(move |_drawing_area, cr, width, height| {
         draw_graphs(&d, zoom_x, zoom_y, cr, width as f64, height as f64);
     });

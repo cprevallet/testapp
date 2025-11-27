@@ -2,8 +2,7 @@ use gtk4::gdk::Display;
 use gtk4::prelude::*;
 use gtk4::{
     Application, ApplicationWindow, Button, DrawingArea, FileChooserAction, FileChooserNative,
-    Frame, Label, Orientation, ResponseType, ScrolledWindow, TextBuffer, TextView,
-    gdk,
+    Frame, Label, Orientation, ResponseType, ScrolledWindow, TextBuffer, TextView, gdk,
 };
 use libshumate::prelude::*;
 use plotters::prelude::*;
@@ -79,10 +78,17 @@ fn min_vec(vector: Vec<f32>) -> f32 {
 }
 
 // Find the plot range values.
-fn get_plot_range(data: &Vec<(f32, f32)>) -> (std::ops::Range<f32>, std::ops::Range<f32>) {
+fn get_plot_range(
+    data: &Vec<(f32, f32)>,
+    zoom_x: f32,
+    zoom_y: f32,
+) -> (std::ops::Range<f32>, std::ops::Range<f32>) {
     if data.len() == 0 {
         panic!("Can't calculate range. No values supplied.")
     };
+    if (zoom_x < 0.01) | (zoom_y < 0.01) {
+        panic!("Invalid zoom.")
+    }
     // Split vector of tuples into two vecs
     let (x, y): (Vec<_>, Vec<_>) = data.into_iter().map(|(a, b)| (a, b)).unzip();
     // Find the range of the chart, statistics says 95% should lie between +/3 sigma
@@ -91,8 +97,11 @@ fn get_plot_range(data: &Vec<(f32, f32)>) -> (std::ops::Range<f32>, std::ops::Ra
     let mean_y = mean(&y);
     let _sigma_x = standard_deviation(&x);
     let sigma_y = standard_deviation(&y);
-    let xrange: std::ops::Range<f32> = min_vec(x.clone())..max_vec(x.clone());
-    let yrange: std::ops::Range<f32> = mean_y - 2.0 * sigma_y..mean_y + 2.0 * sigma_y;
+    // Disallow zero, negative values of zoom.
+    let xrange: std::ops::Range<f32> = min_vec(x.clone())..zoom_x * max_vec(x.clone());
+    let yrange: std::ops::Range<f32> =
+        mean_y - 2.0 / zoom_y * sigma_y..mean_y + 2.0 / zoom_y * sigma_y;
+    mean_y - 2.0 / zoom_y * sigma_y..mean_y + 2.0 / zoom_y * sigma_y;
     return (xrange, yrange);
 }
 
@@ -110,7 +119,7 @@ fn get_sess_record_field(data: Vec<FitDataRecord>, field_name: &str) -> f64 {
                     }
                 }
             }
-            _ => (), // matches other patterns
+            _ => (), // iatches other patterns
         }
     }
     return f64::NAN;
@@ -355,6 +364,10 @@ fn build_da(data: &Vec<FitDataRecord>) -> DrawingArea {
     let drawing_area: DrawingArea = DrawingArea::builder().build();
     // Need to clone to use inside the closure.
     let d = data.clone();
+    let zx = 1.0;
+    let zoom_x = zx.clone();
+    let zy = 1.0;
+    let zoom_y = zy.clone();
     // Use a "closure" (anonymous function?) as the drawing area draw_func.
     // The pd struct is passed in.
     drawing_area.set_draw_func(move |_drawing_area, cr, width, height| {
@@ -392,7 +405,7 @@ fn build_da(data: &Vec<FitDataRecord>) -> DrawingArea {
                 if plotvals.len() == 0 {
                     continue;
                 }
-                plot_range = get_plot_range(&plotvals.clone());
+                plot_range = get_plot_range(&plotvals.clone(), zoom_x, zoom_y);
                 y_formatter = Box::new(num_formatter);
                 caption = "Elevation";
                 ylabel = "Elevation(feet)";
@@ -404,7 +417,7 @@ fn build_da(data: &Vec<FitDataRecord>) -> DrawingArea {
                 if plotvals.len() == 0 {
                     continue;
                 }
-                plot_range = get_plot_range(&plotvals.clone());
+                plot_range = get_plot_range(&plotvals.clone(), zoom_x, zoom_y);
                 y_formatter = Box::new(num_formatter);
                 caption = "Heart rate";
                 ylabel = "Heart rate(bpm)";
@@ -416,7 +429,7 @@ fn build_da(data: &Vec<FitDataRecord>) -> DrawingArea {
                 if plotvals.len() == 0 {
                     continue;
                 }
-                plot_range = get_plot_range(&plotvals.clone());
+                plot_range = get_plot_range(&plotvals.clone(), zoom_x, zoom_y);
                 y_formatter = Box::new(num_formatter);
                 caption = "Cadence";
                 ylabel = "Cadence";
@@ -428,7 +441,7 @@ fn build_da(data: &Vec<FitDataRecord>) -> DrawingArea {
                 if plotvals.len() == 0 {
                     continue;
                 }
-                plot_range = get_plot_range(&plotvals.clone());
+                plot_range = get_plot_range(&plotvals.clone(), zoom_x, zoom_y);
                 y_formatter = Box::new(pace_formatter);
                 caption = "Pace";
                 ylabel = "Pace(min/mile)";
@@ -440,7 +453,7 @@ fn build_da(data: &Vec<FitDataRecord>) -> DrawingArea {
                 if plotvals.len() == 0 {
                     continue;
                 }
-                plot_range = get_plot_range(&plotvals.clone());
+                plot_range = get_plot_range(&plotvals.clone(), zoom_x, zoom_y);
                 y_formatter = Box::new(num_formatter);
                 caption = "Temperature";
                 ylabel = "Temperature (°F)";

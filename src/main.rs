@@ -2,8 +2,8 @@ use gtk4::gdk::Display;
 use gtk4::prelude::*;
 use gtk4::{
     Adjustment, Application, ApplicationWindow, Button, DrawingArea, FileChooserAction,
-    FileChooserNative, Frame, Label, Orientation, ResponseType, ScrolledWindow, SpinButton,
-    TextBuffer, TextView, gdk,
+    FileChooserNative, Frame, Orientation, ResponseType, ScrolledWindow, SpinButton, TextBuffer,
+    TextView, gdk,
 };
 use libshumate::prelude::*;
 use plotters::prelude::*;
@@ -755,12 +755,10 @@ fn build_gui(app: &Application) {
     let frame_left = Frame::builder().build();
     let frame_right = Frame::builder().build();
     let btn = Button::with_label("Select a file...");
-    let label_path = Label::new(Some("No file selected"));
 
     let frame_left_handle = frame_left.clone();
     let frame_right_handle = frame_right.clone();
     let window_clone = win.clone();
-    let label_clone = label_path.clone();
     let text_buffer_handle = text_buffer.clone();
 
     btn.connect_clicked(move |_| {
@@ -775,7 +773,6 @@ fn build_gui(app: &Application) {
         );
 
         // We need another clone of the label for the dialog's internal closure
-        let label_for_dialog = label_clone.clone();
         let frame_left_handle2 = frame_left_handle.clone();
         let frame_right_handle2 = frame_right_handle.clone();
         let text_buffer_handle2 = text_buffer_handle.clone();
@@ -787,7 +784,6 @@ fn build_gui(app: &Application) {
                 if let Some(file) = dialog.file() {
                     if let Some(path) = file.path() {
                         let path_str = path.to_string_lossy();
-                        label_for_dialog.set_text(&path_str);
                         // Get values from fit file.
                         let file_result = File::open(&*path_str);
                         let mut file = match file_result {

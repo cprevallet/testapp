@@ -8,6 +8,7 @@ use libshumate::prelude::*;
 use plotters::prelude::*;
 //use gtk4::glib::clone;
 use fitparser::{FitDataRecord, Value, profile::field_types::MesgNum};
+use gtk4::cairo::Context;
 use libshumate::{Coordinate, PathLayer, SimpleMap};
 use plotters::style::full_palette::BROWN;
 use plotters::style::full_palette::CYAN;
@@ -359,6 +360,128 @@ fn get_xy(data: &Vec<FitDataRecord>, x_field_name: &str, y_field_name: &str) -> 
     return xy_pairs;
 }
 
+fn draw_graphs(
+    d: &Vec<FitDataRecord>,
+    zoom_x: f32,
+    zoom_y: f32,
+    cr: &Context,
+    width: f64,
+    height: f64,
+) {
+    //        println!("{:?}", d);
+    // --- 🎨 Custom Drawing Logic Starts Here ---
+    let root = plotters_cairo::CairoBackend::new(&cr, (width as u32, height as u32))
+        .unwrap()
+        .into_drawing_area();
+    let _ = root.fill(&WHITE);
+    let areas = root.split_evenly((2, 3));
+    // Declare and initialize.
+    let num_formatter = |x: &f32| format!("{:.3}", x);
+    let pace_formatter = |x: &f32| {
+        let mins = x.trunc();
+        let secs = x - mins;
+        format!("{:02.0}:{:02.0}", mins, secs)
+    };
+    let mut plotvals: Vec<(f32, f32)> = Vec::new();
+    let mut caption: &str = "";
+    let mut xlabel: &str = "";
+    let mut ylabel: &str = "";
+    let mut plot_range: (std::ops::Range<f32>, std::ops::Range<f32>) = (0_f32..1_f32, 0_f32..1_f32);
+    let mut y_formatter: Box<dyn Fn(&f32) -> String> = Box::new(num_formatter);
+    let mut color = &RED;
+
+    for (a, idx) in areas.iter().zip(1..) {
+        //let root = root.margin(50, 50, 50, 50);
+        // After this point, we should be able to construct a chart context
+        if idx == 1 {
+            plotvals = get_xy(&d, "distance", "enhanced_altitude");
+            if plotvals.len() == 0 {
+                continue;
+            }
+            plot_range = set_plot_range(&plotvals.clone(), zoom_x, zoom_y);
+            y_formatter = Box::new(num_formatter);
+            caption = "Elevation";
+            ylabel = "Elevation(feet)";
+            xlabel = "Distance(miles)";
+            color = &RED;
+        }
+        if idx == 2 {
+            plotvals = get_xy(&d, "distance", "heart_rate");
+            if plotvals.len() == 0 {
+                continue;
+            }
+            plot_range = set_plot_range(&plotvals.clone(), zoom_x, zoom_y);
+            y_formatter = Box::new(num_formatter);
+            caption = "Heart rate";
+            ylabel = "Heart rate(bpm)";
+            xlabel = "Distance(miles)";
+            color = &BLUE;
+        }
+        if idx == 3 {
+            plotvals = get_xy(&d, "distance", "cadence");
+            if plotvals.len() == 0 {
+                continue;
+            }
+            plot_range = set_plot_range(&plotvals.clone(), zoom_x, zoom_y);
+            y_formatter = Box::new(num_formatter);
+            caption = "Cadence";
+            ylabel = "Cadence";
+            xlabel = "Distance(miles)";
+            color = &CYAN;
+        }
+        if idx == 4 {
+            plotvals = get_xy(&d, "distance", "enhanced_speed");
+            if plotvals.len() == 0 {
+                continue;
+            }
+            plot_range = set_plot_range(&plotvals.clone(), zoom_x, zoom_y);
+            y_formatter = Box::new(pace_formatter);
+            caption = "Pace";
+            ylabel = "Pace(min/mile)";
+            xlabel = "Distance(miles)";
+            color = &GREEN;
+        }
+        if idx == 5 {
+            plotvals = get_xy(&d, "distance", "temperature");
+            if plotvals.len() == 0 {
+                continue;
+            }
+            plot_range = set_plot_range(&plotvals.clone(), zoom_x, zoom_y);
+            y_formatter = Box::new(num_formatter);
+            caption = "Temperature";
+            ylabel = "Temperature (°F)";
+            xlabel = "Distance(miles)";
+            color = &BROWN;
+        }
+        if idx == 6 {
+            break;
+        }
+        let mut chart = ChartBuilder::on(&a)
+            // Set the caption of the chart
+            .caption(caption, ("sans-serif", 16).into_font())
+            // Set the size of the label region
+            .x_label_area_size(40)
+            .y_label_area_size(60)
+            // Finally attach a coordinate on the drawing area and make a chart context
+            .build_cartesian_2d(plot_range.clone().0, plot_range.clone().1)
+            .unwrap();
+        let _ = chart
+            .configure_mesh()
+            // We can customize the maximum number of labels allowed for each axis
+            .x_labels(5)
+            .y_labels(5)
+            .x_desc(xlabel)
+            .y_desc(ylabel)
+            .y_label_formatter(&y_formatter)
+            .draw();
+        // // And we can draw something in the drawing area
+        // We need to clone plotvals each time we make a call to LineSeries and PointSeries
+        let _ = chart.draw_series(LineSeries::new(plotvals.clone(), color));
+    }
+    let _ = root.present();
+    // --- Custom Drawing Logic Ends Here ---
+}
+
 // Build drawing area.
 fn build_da(data: &Vec<FitDataRecord>) -> DrawingArea {
     let drawing_area: DrawingArea = DrawingArea::builder().build();
@@ -368,126 +491,9 @@ fn build_da(data: &Vec<FitDataRecord>) -> DrawingArea {
     let zoom_x = zx.clone();
     let zy = 1.0;
     let zoom_y = zy.clone();
-    // Use a "closure" (anonymous function?) as the drawing area draw_func.
-    // The pd struct is passed in.
     drawing_area.set_draw_func(move |_drawing_area, cr, width, height| {
-        //        println!("{:?}", d);
-        // --- 🎨 Custom Drawing Logic Starts Here ---
-        let root = plotters_cairo::CairoBackend::new(
-            &cr,
-            (width.try_into().unwrap(), height.try_into().unwrap()),
-        )
-        .unwrap()
-        .into_drawing_area();
-        let _ = root.fill(&WHITE);
-        let areas = root.split_evenly((2, 3));
-        // Declare and initialize.
-        let num_formatter = |x: &f32| format!("{:.3}", x);
-        let pace_formatter = |x: &f32| {
-            let mins = x.trunc();
-            let secs = x - mins;
-            format!("{:02.0}:{:02.0}", mins, secs)
-        };
-        let mut plotvals: Vec<(f32, f32)> = Vec::new();
-        let mut caption: &str = "";
-        let mut xlabel: &str = "";
-        let mut ylabel: &str = "";
-        let mut plot_range: (std::ops::Range<f32>, std::ops::Range<f32>) =
-            (0_f32..1_f32, 0_f32..1_f32);
-        let mut y_formatter: Box<dyn Fn(&f32) -> String> = Box::new(num_formatter);
-        let mut color = &RED;
-
-        for (a, idx) in areas.iter().zip(1..) {
-            //let root = root.margin(50, 50, 50, 50);
-            // After this point, we should be able to construct a chart context
-            if idx == 1 {
-                plotvals = get_xy(&d, "distance", "enhanced_altitude");
-                if plotvals.len() == 0 {
-                    continue;
-                }
-                plot_range = set_plot_range(&plotvals.clone(), zoom_x, zoom_y);
-                y_formatter = Box::new(num_formatter);
-                caption = "Elevation";
-                ylabel = "Elevation(feet)";
-                xlabel = "Distance(miles)";
-                color = &RED;
-            }
-            if idx == 2 {
-                plotvals = get_xy(&d, "distance", "heart_rate");
-                if plotvals.len() == 0 {
-                    continue;
-                }
-                plot_range = set_plot_range(&plotvals.clone(), zoom_x, zoom_y);
-                y_formatter = Box::new(num_formatter);
-                caption = "Heart rate";
-                ylabel = "Heart rate(bpm)";
-                xlabel = "Distance(miles)";
-                color = &BLUE;
-            }
-            if idx == 3 {
-                plotvals = get_xy(&d, "distance", "cadence");
-                if plotvals.len() == 0 {
-                    continue;
-                }
-                plot_range = set_plot_range(&plotvals.clone(), zoom_x, zoom_y);
-                y_formatter = Box::new(num_formatter);
-                caption = "Cadence";
-                ylabel = "Cadence";
-                xlabel = "Distance(miles)";
-                color = &CYAN;
-            }
-            if idx == 4 {
-                plotvals = get_xy(&d, "distance", "enhanced_speed");
-                if plotvals.len() == 0 {
-                    continue;
-                }
-                plot_range = set_plot_range(&plotvals.clone(), zoom_x, zoom_y);
-                y_formatter = Box::new(pace_formatter);
-                caption = "Pace";
-                ylabel = "Pace(min/mile)";
-                xlabel = "Distance(miles)";
-                color = &GREEN;
-            }
-            if idx == 5 {
-                plotvals = get_xy(&d, "distance", "temperature");
-                if plotvals.len() == 0 {
-                    continue;
-                }
-                plot_range = set_plot_range(&plotvals.clone(), zoom_x, zoom_y);
-                y_formatter = Box::new(num_formatter);
-                caption = "Temperature";
-                ylabel = "Temperature (°F)";
-                xlabel = "Distance(miles)";
-                color = &BROWN;
-            }
-            if idx == 6 {
-                break;
-            }
-            let mut chart = ChartBuilder::on(&a)
-                // Set the caption of the chart
-                .caption(caption, ("sans-serif", 16).into_font())
-                // Set the size of the label region
-                .x_label_area_size(40)
-                .y_label_area_size(60)
-                // Finally attach a coordinate on the drawing area and make a chart context
-                .build_cartesian_2d(plot_range.clone().0, plot_range.clone().1)
-                .unwrap();
-            let _ = chart
-                .configure_mesh()
-                // We can customize the maximum number of labels allowed for each axis
-                .x_labels(5)
-                .y_labels(5)
-                .x_desc(xlabel)
-                .y_desc(ylabel)
-                .y_label_formatter(&y_formatter)
-                .draw();
-            // // And we can draw something in the drawing area
-            // We need to clone plotvals each time we make a call to LineSeries and PointSeries
-            let _ = chart.draw_series(LineSeries::new(plotvals.clone(), color));
-        }
-        let _ = root.present();
-        // --- Custom Drawing Logic Ends Here ---
-    }); // --- End closure. 
+        draw_graphs(&d, zoom_x, zoom_y, cr, width as f64, height as f64);
+    });
     return drawing_area;
 }
 

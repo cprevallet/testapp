@@ -1,8 +1,9 @@
 use gtk4::gdk::Display;
 use gtk4::prelude::*;
 use gtk4::{
-    Application, ApplicationWindow, Button, DrawingArea, FileChooserAction, FileChooserNative,
-    Frame, Label, Orientation, ResponseType, ScrolledWindow, TextBuffer, TextView, gdk,
+    Adjustment, Application, ApplicationWindow, Button, DrawingArea, FileChooserAction,
+    FileChooserNative, Frame, Label, Orientation, ResponseType, ScrolledWindow, SpinButton,
+    TextBuffer, TextView, gdk,
 };
 use libshumate::prelude::*;
 use plotters::prelude::*;
@@ -827,13 +828,34 @@ fn build_gui(app: &Application) {
         // 3. Show the dialog
         native.show();
     });
+    let adjustment = Adjustment::builder()
+        // The initial value (current)
+        .value(1.0)
+        // The minimum value
+        .lower(0.5)
+        // The maximum value
+        .upper(2.0)
+        // Small step increment (for arrow keys/buttons)
+        .step_increment(0.1)
+        // Large step increment (for Page Up/Page Down keys)
+        .page_increment(0.2)
+        // The size of the viewable area (not often used for SpinButton, usually 0.0)
+        .page_size(0.0)
+        .build();
+    let y_zoom_spin_button = SpinButton::builder()
+        // Assign the Adjustment object to the SpinButton
+        .adjustment(&adjustment)
+        // Only set properties not managed by the Adjustment:
+        .digits(2) // Display 2 decimal places
+        .wrap(true)
+        .build();
 
     // Inner box contains only the map and text summary
     inner_box.append(&frame_left);
     inner_box.set_homogeneous(true);
     // TextViews do not scroll by default; they must be wrapped in a ScrolledWindow.
     let scrolled_window = ScrolledWindow::builder()
-        //        .hscrollbar_policy(gtk::PolicyType::Never) // Disable horizontal scrolling
+        //        .hscrollbar_policy:(gtk::PolicyType::Never) // Disable horizontal scrolling
         .min_content_width(300)
         .min_content_height(200)
         .child(&text_view)
@@ -845,6 +867,7 @@ fn build_gui(app: &Application) {
     main_box.set_homogeneous(true); // Ensures both frames take exactly half the window width
     // Outer box contains the above and the file load button.
     outer_box.append(&btn);
+    outer_box.append(&y_zoom_spin_button);
     outer_box.append(&main_box);
     win.set_child(Some(&outer_box));
     win.present();

@@ -757,7 +757,7 @@ fn build_gui(app: &Application) {
     // Main horizontal container to hold the two frames side-by-side
     let main_box = gtk4::Box::new(Orientation::Horizontal, 10);
     let left_frame_box = gtk4::Box::new(Orientation::Vertical, 10);
-    let right_frame_box = gtk4::Box::new(Orientation::Vertical, 10);
+    let right_frame_box = gtk4::Box::new(Orientation::Horizontal, 10);
 
     //Create a spin button for the y-axis zoom.
     let y_zoom_spin_button = SpinButton::builder()
@@ -825,13 +825,16 @@ fn build_gui(app: &Application) {
                         if let Ok(data) = fitparser::from_reader(&mut file) {
                             let shumate_map = build_map(&data);
                             let (da, _, yzm) = build_da(&data);
-                            let (_width, height) = get_geometry();
+                            let (width, _height) = get_geometry();
                             let da_height = 0.7 * height as f32;
+                            let da_width = 0.45 * width as f32;
                             da.set_content_height(da_height as i32);
+                            da.set_content_width(da_width as i32);
                             let y_da_handle = da.clone();
                             frame_left_handle2.set_child(Some(&shumate_map));
                             frame_right_handle2.set_child(Some(&da));
                             y_axis_spin_button_handle2.set_adjustment(&yzm);
+                            y_axis_spin_button_handle2.set_width_request(30);
                             y_axis_spin_button_handle2
                                 .adjustment()
                                 .connect_value_changed(move |_| {
@@ -858,7 +861,6 @@ fn build_gui(app: &Application) {
     right_frame_box.append(&y_zoom_spin_button);
     left_frame_box.append(&frame_left);
     left_frame_box.set_homogeneous(true);
-    // right_frame_box.set_homogeneous(true);
     // TextViews do not scroll by default; they must be wrapped in a ScrolledWindow.
     let scrolled_window = ScrolledWindow::builder()
         //        .hscrollbar_policy:(gtk::PolicyType::Never) // Disable horizontal scrolling

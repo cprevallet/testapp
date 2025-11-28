@@ -4,8 +4,8 @@ use gtk4::gdk::Display;
 use gtk4::prelude::*;
 use gtk4::{
     Adjustment, Application, ApplicationWindow, Button, DrawingArea, FileChooserAction,
-    FileChooserNative, Frame, Orientation, ResponseType, Scale, ScrolledWindow, SpinButton,
-    TextBuffer, TextView, gdk,
+    FileChooserNative, Frame, Orientation, ResponseType, ScrolledWindow, SpinButton, TextBuffer,
+    TextView, gdk,
 };
 use libshumate::prelude::*;
 use libshumate::{Coordinate, PathLayer, SimpleMap};

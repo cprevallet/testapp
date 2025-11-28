@@ -1,14 +1,15 @@
+use fitparser::{FitDataRecord, Value, profile::field_types::MesgNum};
+use gtk4::cairo::Context;
 use gtk4::gdk::Display;
 use gtk4::prelude::*;
 use gtk4::{
-    Application, ApplicationWindow, Button, DrawingArea, FileChooserAction, FileChooserNative,
-    Frame, Label, Orientation, ResponseType, ScrolledWindow, TextBuffer, TextView, gdk,
+    Adjustment, Application, ApplicationWindow, Button, DrawingArea, FileChooserAction,
+    FileChooserNative, Frame, Orientation, ResponseType, Scale, ScrolledWindow, SpinButton,
+    TextBuffer, TextView, gdk,
 };
 use libshumate::prelude::*;
-use plotters::prelude::*;
-//use gtk4::glib::clone;
-use fitparser::{FitDataRecord, Value, profile::field_types::MesgNum};
 use libshumate::{Coordinate, PathLayer, SimpleMap};
+use plotters::prelude::*;
 use plotters::style::full_palette::BROWN;
 use plotters::style::full_palette::CYAN;
 use std::fs::File;
@@ -78,10 +79,17 @@ fn min_vec(vector: Vec<f32>) -> f32 {
 }
 
 // Find the plot range values.
-fn get_plot_range(data: &Vec<(f32, f32)>) -> (std::ops::Range<f32>, std::ops::Range<f32>) {
+fn set_plot_range(
+    data: &Vec<(f32, f32)>,
+    zoom_x: f32,
+    zoom_y: f32,
+) -> (std::ops::Range<f32>, std::ops::Range<f32>) {
     if data.len() == 0 {
         panic!("Can't calculate range. No values supplied.")
     };
+    if (zoom_x < 0.01) | (zoom_y < 0.01) {
+        panic!("Invalid zoom.")
+    }
     // Split vector of tuples into two vecs
     let (x, y): (Vec<_>, Vec<_>) = data.into_iter().map(|(a, b)| (a, b)).unzip();
     // Find the range of the chart, statistics says 95% should lie between +/3 sigma
@@ -90,8 +98,11 @@ fn get_plot_range(data: &Vec<(f32, f32)>) -> (std::ops::Range<f32>, std::ops::Ra
     let mean_y = mean(&y);
     let _sigma_x = standard_deviation(&x);
     let sigma_y = standard_deviation(&y);
-    let xrange: std::ops::Range<f32> = min_vec(x.clone())..max_vec(x.clone());
-    let yrange: std::ops::Range<f32> = mean_y - 2.0 * sigma_y..mean_y + 2.0 * sigma_y;
+    // Disallow zero, negative values of zoom.
+    let xrange: std::ops::Range<f32> = min_vec(x.clone())..1.0 / zoom_x * max_vec(x.clone());
+    let yrange: std::ops::Range<f32> =
+        mean_y - 2.0 / zoom_y * sigma_y..mean_y + 2.0 / zoom_y * sigma_y;
+    mean_y - 2.0 / zoom_y * sigma_y..mean_y + 2.0 / zoom_y * sigma_y;
     return (xrange, yrange);
 }
 
@@ -109,7 +120,7 @@ fn get_sess_record_field(data: Vec<FitDataRecord>, field_name: &str) -> f64 {
                     }
                 }
             }
-            _ => (), // matches other patterns
+            _ => (), // iatches other patterns
         }
     }
     return f64::NAN;
@@ -349,132 +360,169 @@ fn get_xy(data: &Vec<FitDataRecord>, x_field_name: &str, y_field_name: &str) -> 
     return xy_pairs;
 }
 
+fn draw_graphs(
+    d: &Vec<FitDataRecord>,
+    xzm: &Adjustment,
+    yzm: &Adjustment,
+    cr: &Context,
+    width: f64,
+    height: f64,
+) {
+    let zoom_x: f32 = xzm.value() as f32;
+    let zoom_y: f32 = yzm.value() as f32;
+    //        println!("{:?}", d);
+    // --- 🎨 Custom Drawing Logic Starts Here ---
+    let root = plotters_cairo::CairoBackend::new(&cr, (width as u32, height as u32))
+        .unwrap()
+        .into_drawing_area();
+    let _ = root.fill(&WHITE);
+    let areas = root.split_evenly((2, 3));
+    // Declare and initialize.
+    let num_formatter = |x: &f32| format!("{:.3}", x);
+    let pace_formatter = |x: &f32| {
+        let mins = x.trunc();
+        let secs = x - mins;
+        format!("{:02.0}:{:02.0}", mins, secs)
+    };
+    let mut plotvals: Vec<(f32, f32)> = Vec::new();
+    let mut caption: &str = "";
+    let mut xlabel: &str = "";
+    let mut ylabel: &str = "";
+    let mut plot_range: (std::ops::Range<f32>, std::ops::Range<f32>) = (0_f32..1_f32, 0_f32..1_f32);
+    let mut y_formatter: Box<dyn Fn(&f32) -> String> = Box::new(num_formatter);
+    let mut color = &RED;
+    for (a, idx) in areas.iter().zip(1..) {
+        //let root = root.margin(50, 50, 50, 50);
+        // After this point, we should be able to construct a chart context
+        if idx == 1 {
+            plotvals = get_xy(&d, "distance", "enhanced_altitude");
+            if plotvals.len() == 0 {
+                continue;
+            }
+            plot_range = set_plot_range(&plotvals.clone(), zoom_x, zoom_y);
+            y_formatter = Box::new(num_formatter);
+            caption = "Elevation";
+            ylabel = "Elevation(feet)";
+            xlabel = "Distance(miles)";
+            color = &RED;
+        }
+        if idx == 2 {
+            plotvals = get_xy(&d, "distance", "heart_rate");
+            if plotvals.len() == 0 {
+                continue;
+            }
+            plot_range = set_plot_range(&plotvals.clone(), zoom_x, zoom_y);
+            y_formatter = Box::new(num_formatter);
+            caption = "Heart rate";
+            ylabel = "Heart rate(bpm)";
+            xlabel = "Distance(miles)";
+            color = &BLUE;
+        }
+        if idx == 3 {
+            plotvals = get_xy(&d, "distance", "cadence");
+            if plotvals.len() == 0 {
+                continue;
+            }
+            plot_range = set_plot_range(&plotvals.clone(), zoom_x, zoom_y);
+            y_formatter = Box::new(num_formatter);
+            caption = "Cadence";
+            ylabel = "Cadence";
+            xlabel = "Distance(miles)";
+            color = &CYAN;
+        }
+        if idx == 4 {
+            plotvals = get_xy(&d, "distance", "enhanced_speed");
+            if plotvals.len() == 0 {
+                continue;
+            }
+            plot_range = set_plot_range(&plotvals.clone(), zoom_x, zoom_y);
+            y_formatter = Box::new(pace_formatter);
+            caption = "Pace";
+            ylabel = "Pace(min/mile)";
+            xlabel = "Distance(miles)";
+            color = &GREEN;
+        }
+        if idx == 5 {
+            plotvals = get_xy(&d, "distance", "temperature");
+            if plotvals.len() == 0 {
+                continue;
+            }
+            plot_range = set_plot_range(&plotvals.clone(), zoom_x, zoom_y);
+            y_formatter = Box::new(num_formatter);
+            caption = "Temperature";
+            ylabel = "Temperature (°F)";
+            xlabel = "Distance(miles)";
+            color = &BROWN;
+        }
+        if idx == 6 {
+            break;
+        }
+        let mut chart = ChartBuilder::on(&a)
+            // Set the caption of the chart
+            .caption(caption, ("sans-serif", 16).into_font())
+            // Set the size of the label region
+            .x_label_area_size(40)
+            .y_label_area_size(60)
+            // Finally attach a coordinate on the drawing area and make a chart context
+            .build_cartesian_2d(plot_range.clone().0, plot_range.clone().1)
+            .unwrap();
+        let _ = chart
+            .configure_mesh()
+            // We can customize the maximum number of labels allowed for each axis
+            .x_labels(5)
+            .y_labels(5)
+            .x_desc(xlabel)
+            .y_desc(ylabel)
+            .y_label_formatter(&y_formatter)
+            .draw();
+        // // And we can draw something in the drawing area
+        // We need to clone plotvals each time we make a call to LineSeries and PointSeries
+        let _ = chart.draw_series(LineSeries::new(plotvals.clone(), color));
+    }
+    let _ = root.present();
+    // --- Custom Drawing Logic Ends Here ---
+}
+
 // Build drawing area.
-fn build_da(data: &Vec<FitDataRecord>) -> DrawingArea {
+fn build_da(data: &Vec<FitDataRecord>) -> (DrawingArea, Adjustment, Adjustment) {
     let drawing_area: DrawingArea = DrawingArea::builder().build();
     // Need to clone to use inside the closure.
     let d = data.clone();
-    // Use a "closure" (anonymous function?) as the drawing area draw_func.
-    // The pd struct is passed in.
-    drawing_area.set_draw_func(move |_drawing_area, cr, width, height| {
-        //        println!("{:?}", d);
-        // --- 🎨 Custom Drawing Logic Starts Here ---
-        let root = plotters_cairo::CairoBackend::new(
-            &cr,
-            (width.try_into().unwrap(), height.try_into().unwrap()),
-        )
-        .unwrap()
-        .into_drawing_area();
-        let _ = root.fill(&WHITE);
-        let areas = root.split_evenly((2, 3));
-        // Declare and initialize.
-        let num_formatter = |x: &f32| format!("{:.3}", x);
-        let pace_formatter = |x: &f32| {
-            let mins = x.trunc();
-            let secs = x - mins;
-            format!("{:02.0}:{:02.0}", mins, secs)
-        };
-        let mut plotvals: Vec<(f32, f32)> = Vec::new();
-        let mut caption: &str = "";
-        let mut xlabel: &str = "";
-        let mut ylabel: &str = "";
-        let mut plot_range: (std::ops::Range<f32>, std::ops::Range<f32>) =
-            (0_f32..1_f32, 0_f32..1_f32);
-        let mut y_formatter: Box<dyn Fn(&f32) -> String> = Box::new(num_formatter);
-        let mut color = &RED;
 
-        for (a, idx) in areas.iter().zip(1..) {
-            //let root = root.margin(50, 50, 50, 50);
-            // After this point, we should be able to construct a chart context
-            if idx == 1 {
-                plotvals = get_xy(&d, "distance", "enhanced_altitude");
-                if plotvals.len() == 0 {
-                    continue;
-                }
-                plot_range = get_plot_range(&plotvals.clone());
-                y_formatter = Box::new(num_formatter);
-                caption = "Elevation";
-                ylabel = "Elevation(feet)";
-                xlabel = "Distance(miles)";
-                color = &RED;
-            }
-            if idx == 2 {
-                plotvals = get_xy(&d, "distance", "heart_rate");
-                if plotvals.len() == 0 {
-                    continue;
-                }
-                plot_range = get_plot_range(&plotvals.clone());
-                y_formatter = Box::new(num_formatter);
-                caption = "Heart rate";
-                ylabel = "Heart rate(bpm)";
-                xlabel = "Distance(miles)";
-                color = &BLUE;
-            }
-            if idx == 3 {
-                plotvals = get_xy(&d, "distance", "cadence");
-                if plotvals.len() == 0 {
-                    continue;
-                }
-                plot_range = get_plot_range(&plotvals.clone());
-                y_formatter = Box::new(num_formatter);
-                caption = "Cadence";
-                ylabel = "Cadence";
-                xlabel = "Distance(miles)";
-                color = &CYAN;
-            }
-            if idx == 4 {
-                plotvals = get_xy(&d, "distance", "enhanced_speed");
-                if plotvals.len() == 0 {
-                    continue;
-                }
-                plot_range = get_plot_range(&plotvals.clone());
-                y_formatter = Box::new(pace_formatter);
-                caption = "Pace";
-                ylabel = "Pace(min/mile)";
-                xlabel = "Distance(miles)";
-                color = &GREEN;
-            }
-            if idx == 5 {
-                plotvals = get_xy(&d, "distance", "temperature");
-                if plotvals.len() == 0 {
-                    continue;
-                }
-                plot_range = get_plot_range(&plotvals.clone());
-                y_formatter = Box::new(num_formatter);
-                caption = "Temperature";
-                ylabel = "Temperature (°F)";
-                xlabel = "Distance(miles)";
-                color = &BROWN;
-            }
-            if idx == 6 {
-                break;
-            }
-            let mut chart = ChartBuilder::on(&a)
-                // Set the caption of the chart
-                .caption(caption, ("sans-serif", 16).into_font())
-                // Set the size of the label region
-                .x_label_area_size(40)
-                .y_label_area_size(60)
-                // Finally attach a coordinate on the drawing area and make a chart context
-                .build_cartesian_2d(plot_range.clone().0, plot_range.clone().1)
-                .unwrap();
-            let _ = chart
-                .configure_mesh()
-                // We can customize the maximum number of labels allowed for each axis
-                .x_labels(5)
-                .y_labels(5)
-                .x_desc(xlabel)
-                .y_desc(ylabel)
-                .y_label_formatter(&y_formatter)
-                .draw();
-            // // And we can draw something in the drawing area
-            // We need to clone plotvals each time we make a call to LineSeries and PointSeries
-            let _ = chart.draw_series(LineSeries::new(plotvals.clone(), color));
-        }
-        let _ = root.present();
-        // --- Custom Drawing Logic Ends Here ---
-    }); // --- End closure. 
-    return drawing_area;
+    let yzm = Adjustment::builder()
+        // The minimum value
+        .lower(0.2)
+        // The maximum value
+        .upper(4.0)
+        // Small step increment (for arrow keys/buttons)
+        .step_increment(0.1)
+        // Large step increment (for Page Up/Page Down keys)
+        .page_increment(0.2)
+        // The size of the viewable area (not often used for SpinButton, usually 0.0)
+        .page_size(0.0)
+        .build();
+    yzm.set_value(1.0);
+
+    let xzm = Adjustment::builder()
+        // The minimum value
+        .lower(0.5)
+        // The maximum value
+        .upper(2.0)
+        // Small step increment (for arrow keys/buttons)
+        .step_increment(0.1)
+        // Large step increment (for Page Up/Page Down keys)
+        .page_increment(0.2)
+        // The size of the viewable area (not often used for SpinButton, usually 0.0)
+        .page_size(0.0)
+        .build();
+    xzm.set_value(1.0);
+
+    let x_zoom = xzm.clone();
+    let y_zoom = yzm.clone();
+    drawing_area.set_draw_func(move |_drawing_area, cr, width, height| {
+        draw_graphs(&d, &x_zoom, &y_zoom, cr, width as f64, height as f64);
+    });
+    return (drawing_area, xzm, yzm);
 }
 
 // Adds a PathLayer with a path of given coordinates to the map.
@@ -708,25 +756,34 @@ fn build_gui(app: &Application) {
     let outer_box = gtk4::Box::new(Orientation::Vertical, 10);
     // Main horizontal container to hold the two frames side-by-side
     let main_box = gtk4::Box::new(Orientation::Horizontal, 10);
-    let inner_box = gtk4::Box::new(Orientation::Vertical, 10);
+    let left_frame_box = gtk4::Box::new(Orientation::Vertical, 10);
+    let right_frame_box = gtk4::Box::new(Orientation::Vertical, 10);
+
+    //Create a spin button for the y-axis zoom.
+    let y_zoom_spin_button = SpinButton::builder()
+        // Only set properties not managed by the Adjustment:
+        .digits(2) // Display 2 decimal places
+        .wrap(false)
+        .orientation(Orientation::Vertical)
+        .build();
+    // Create a spin button for the x-axis zoom.
+
     let text_view = TextView::builder().build();
     text_view.set_monospace(true);
     text_view.set_top_margin(10);
     text_view.set_left_margin(10);
     let text_buffer = text_view.buffer();
-
     main_box.set_vexpand(true);
     main_box.set_hexpand(true);
     let frame_left = Frame::builder().build();
     let frame_right = Frame::builder().build();
     let btn = Button::with_label("Select a file...");
-    let label_path = Label::new(Some("No file selected"));
 
     let frame_left_handle = frame_left.clone();
     let frame_right_handle = frame_right.clone();
     let window_clone = win.clone();
-    let label_clone = label_path.clone();
     let text_buffer_handle = text_buffer.clone();
+    let y_axis_spin_button_handle = y_zoom_spin_button.clone();
 
     btn.connect_clicked(move |_| {
         // 1. Create the Native Dialog
@@ -740,10 +797,10 @@ fn build_gui(app: &Application) {
         );
 
         // We need another clone of the label for the dialog's internal closure
-        let label_for_dialog = label_clone.clone();
         let frame_left_handle2 = frame_left_handle.clone();
         let frame_right_handle2 = frame_right_handle.clone();
         let text_buffer_handle2 = text_buffer_handle.clone();
+        let y_axis_spin_button_handle2 = y_axis_spin_button_handle.clone();
 
         // 2. Connect to the response signal
         native.connect_response(move |dialog, response| {
@@ -752,7 +809,6 @@ fn build_gui(app: &Application) {
                 if let Some(file) = dialog.file() {
                     if let Some(path) = file.path() {
                         let path_str = path.to_string_lossy();
-                        label_for_dialog.set_text(&path_str);
                         // Get values from fit file.
                         let file_result = File::open(&*path_str);
                         let mut file = match file_result {
@@ -770,9 +826,19 @@ fn build_gui(app: &Application) {
                         // Read the fit file and create the map and graph drawing area.
                         if let Ok(data) = fitparser::from_reader(&mut file) {
                             let shumate_map = build_map(&data);
+                            let (da, _, yzm) = build_da(&data);
+                            let (_width, height) = get_geometry();
+                            let da_height = 0.7 * height as f32;
+                            da.set_content_height(da_height as i32);
+                            let y_da_handle = da.clone();
                             frame_left_handle2.set_child(Some(&shumate_map));
-                            let da = build_da(&data);
                             frame_right_handle2.set_child(Some(&da));
+                            y_axis_spin_button_handle2.set_adjustment(&yzm);
+                            y_axis_spin_button_handle2
+                                .adjustment()
+                                .connect_value_changed(move |_| {
+                                    y_da_handle.queue_draw();
+                                });
                             build_summary(&data, &text_buffer_handle2);
                         }
                     }
@@ -790,22 +856,26 @@ fn build_gui(app: &Application) {
     });
 
     // Inner box contains only the map and text summary
-    inner_box.append(&frame_left);
-    inner_box.set_homogeneous(true);
+    right_frame_box.append(&frame_right);
+    right_frame_box.append(&y_zoom_spin_button);
+    left_frame_box.append(&frame_left);
+    left_frame_box.set_homogeneous(true);
+    // right_frame_box.set_homogeneous(true);
     // TextViews do not scroll by default; they must be wrapped in a ScrolledWindow.
     let scrolled_window = ScrolledWindow::builder()
-        //        .hscrollbar_policy(gtk::PolicyType::Never) // Disable horizontal scrolling
+        //        .hscrollbar_policy:(gtk::PolicyType::Never) // Disable horizontal scrolling
         .min_content_width(300)
         .min_content_height(200)
         .child(&text_view)
         .build();
-    inner_box.append(&scrolled_window);
+    left_frame_box.append(&scrolled_window);
     // Main box contains all of the above plus the graphs.
-    main_box.append(&inner_box);
-    main_box.append(&frame_right);
+    main_box.append(&left_frame_box);
+    main_box.append(&right_frame_box);
     main_box.set_homogeneous(true); // Ensures both frames take exactly half the window width
     // Outer box contains the above and the file load button.
     outer_box.append(&btn);
+    outer_box.append(&y_zoom_spin_button);
     outer_box.append(&main_box);
     win.set_child(Some(&outer_box));
     win.present();

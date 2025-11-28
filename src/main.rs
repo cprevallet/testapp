@@ -758,6 +758,7 @@ fn build_gui(app: &Application) {
     let outer_box = gtk4::Box::new(Orientation::Vertical, 10);
     // Main horizontal container to hold the two frames side-by-side
     let main_box = gtk4::Box::new(Orientation::Horizontal, 10);
+<<<<<<< HEAD
     let inner_box = gtk4::Box::new(Orientation::Vertical, 10);
     let text_view = TextView::builder().build();
     text_view.set_monospace(true);
@@ -767,6 +768,8 @@ fn build_gui(app: &Application) {
 
     main_box.set_vexpand(true);
     main_box.set_hexpand(true);
+=======
+>>>>>>> 9302741 (Group (and comment) the GUI logic in a more logical fashion.  No changes.)
     let frame_left = Frame::builder().build();
     let frame_right = Frame::builder().build();
     let left_frame_box = gtk4::Box::new(Orientation::Vertical, 10);

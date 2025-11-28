@@ -1,4 +1,7 @@
+use fitparser::{FitDataRecord, Value, profile::field_types::MesgNum};
+use gtk4::cairo::Context;
 use gtk4::gdk::Display;
+use gtk4::glib::clone;
 use gtk4::prelude::*;
 use gtk4::{
     Adjustment, Application, ApplicationWindow, Button, DrawingArea, FileChooserAction,
@@ -6,11 +9,8 @@ use gtk4::{
     TextView, gdk,
 };
 use libshumate::prelude::*;
-use plotters::prelude::*;
-//use gtk4::glib::clone;
-use fitparser::{FitDataRecord, Value, profile::field_types::MesgNum};
-use gtk4::cairo::Context;
 use libshumate::{Coordinate, PathLayer, SimpleMap};
+use plotters::prelude::*;
 use plotters::style::full_palette::BROWN;
 use plotters::style::full_palette::CYAN;
 use std::cell::RefCell;
@@ -365,12 +365,14 @@ fn get_xy(data: &Vec<FitDataRecord>, x_field_name: &str, y_field_name: &str) -> 
 
 fn draw_graphs(
     d: &Vec<FitDataRecord>,
-    zoom_x: f32,
-    zoom_y: f32,
+    xzm: &Adjustment,
+    yzm: &Adjustment,
     cr: &Context,
     width: f64,
     height: f64,
 ) {
+    let zoom_x: f32 = xzm.value() as f32;
+    let zoom_y: f32 = yzm.value() as f32;
     println!("drawing");
     //        println!("{:?}", d);
     // --- 🎨 Custom Drawing Logic Starts Here ---
@@ -487,15 +489,45 @@ fn draw_graphs(
 }
 
 // Build drawing area.
-fn build_da(data: &Vec<FitDataRecord>, x_zoom: f32, y_zoom: &f64) -> DrawingArea {
+fn build_da(data: &Vec<FitDataRecord>) -> (DrawingArea, Adjustment, Adjustment) {
     let drawing_area: DrawingArea = DrawingArea::builder().build();
     // Need to clone to use inside the closure.
     let d = data.clone();
-    let yzm = y_zoom.clone() as f32;
+
+    let yzm = Adjustment::builder()
+        // The minimum value
+        .lower(0.5)
+        // The maximum value
+        .upper(2.0)
+        // Small step increment (for arrow keys/buttons)
+        .step_increment(0.1)
+        // Large step increment (for Page Up/Page Down keys)
+        .page_increment(0.2)
+        // The size of the viewable area (not often used for SpinButton, usually 0.0)
+        .page_size(0.0)
+        .build();
+    yzm.set_value(1.0);
+
+    let xzm = Adjustment::builder()
+        // The minimum value
+        .lower(0.5)
+        // The maximum value
+        .upper(2.0)
+        // Small step increment (for arrow keys/buttons)
+        .step_increment(0.1)
+        // Large step increment (for Page Up/Page Down keys)
+        .page_increment(0.2)
+        // The size of the viewable area (not often used for SpinButton, usually 0.0)
+        .page_size(0.0)
+        .build();
+    xzm.set_value(1.0);
+
+    let x_zoom = xzm.clone();
+    let y_zoom = yzm.clone();
     drawing_area.set_draw_func(move |_drawing_area, cr, width, height| {
-        draw_graphs(&d, x_zoom, yzm, cr, width as f64, height as f64);
+        draw_graphs(&d, &x_zoom, &y_zoom, cr, width as f64, height as f64);
     });
-    return drawing_area;
+    return (drawing_area, xzm, yzm);
 }
 
 // Adds a PathLayer with a path of given coordinates to the map.
@@ -731,36 +763,14 @@ fn build_gui(app: &Application) {
     let main_box = gtk4::Box::new(Orientation::Horizontal, 10);
     let inner_box = gtk4::Box::new(Orientation::Vertical, 10);
 
-    // Shared State: Use Rc<RefCell<f64>> to safely share the zoom value
-    // This allows both the spin button widget handler and the drawing function to read/write the value.
-    let y_zoom = Rc::new(RefCell::new(1.0));
-    let adjustment = Adjustment::builder()
-        // The initial value (current)
-        .value(*y_zoom.borrow())
-        // The minimum value
-        .lower(0.5)
-        // The maximum value
-        .upper(2.0)
-        // Small step increment (for arrow keys/buttons)
-        .step_increment(0.1)
-        // Large step increment (for Page Up/Page Down keys)
-        .page_increment(0.2)
-        // The size of the viewable area (not often used for SpinButton, usually 0.0)
-        .page_size(0.0)
-        .build();
-    adjustment.set_value(1.0);
-
     // Create a spin button for the y-axis zoom.
     let y_zoom_spin_button = SpinButton::builder()
         // Assign the Adjustment object to the SpinButton
-        .adjustment(&adjustment)
+        // .adjustment(&adjustment)
         // Only set properties not managed by the Adjustment:
         .digits(2) // Display 2 decimal places
         .wrap(true)
         .build();
-    adjustment.connect_value_changed(|adj| {
-        println!("Adjustment value updated to: {}", adj.value());
-    });
 
     let text_view = TextView::builder().build();
     text_view.set_monospace(true);
@@ -818,16 +828,17 @@ fn build_gui(app: &Application) {
                         // Read the fit file and create the map and graph drawing area.
                         if let Ok(data) = fitparser::from_reader(&mut file) {
                             let shumate_map = build_map(&data);
-                            frame_left_handle2.set_child(Some(&shumate_map));
                             let y_zoom = sb_handle2.adjustment().value();
-                            let da = build_da(&data, 1.0, &y_zoom);
-                            frame_right_handle2.set_child(Some(&da));
+                            let (da, _, yzm) = build_da(&data);
                             let da_handle = da.clone();
                             let y_zoom_clone = y_zoom.clone();
                             let data_clone = data.clone();
-                            sb_handle2.adjustment().connect_value_changed(move |adj| {
-                                println!("Adjustment changed. {:?}", adj.value());
-                                _ = build_da(&data_clone, 1.0, &adj.value());
+                            frame_left_handle2.set_child(Some(&shumate_map));
+                            frame_right_handle2.set_child(Some(&da));
+                            sb_handle2.set_adjustment(&yzm);
+                            sb_handle2.adjustment().connect_value_changed(move |_| {
+                                // println!("Adjustment changed. {:?}", adj.value());
+                                // _ = build_da(&data_clone, 1.0, &adj.value());
                                 da_handle.queue_draw();
                             });
                             build_summary(&data, &text_buffer_handle2);

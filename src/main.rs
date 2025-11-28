@@ -840,17 +840,20 @@ fn build_gui(app: &Application) {
                                     let da_width = 0.45 * width as f32;
                                     da.set_content_height(da_height as i32);
                                     da.set_content_width(da_width as i32);
-                                    let y_da_handle = da.clone();
                                     frame_left.set_child(Some(&shumate_map));
-                                    frame_right.set_child(Some(&da));
                                     frame_right.set_child(Some(&da));
                                     y_zoom_spin_button.set_adjustment(&yzm);
                                     y_zoom_spin_button.set_width_request(30);
-                                    y_zoom_spin_button.adjustment().connect_value_changed(
-                                        move |_| {
-                                            y_da_handle.queue_draw();
-                                        },
-                                    );
+                                    // Redraw the drawing area when the zoom changes.
+                                    y_zoom_spin_button
+                                        .adjustment()
+                                        .connect_value_changed(clone!(
+                                            #[strong]
+                                            da,
+                                            move |_| {
+                                                da.queue_draw();
+                                            },
+                                        ));
                                     build_summary(&data, &text_buffer);
                                 }
                             }

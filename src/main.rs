@@ -370,6 +370,7 @@ fn draw_graphs(
     d: &Vec<FitDataRecord>,
     xzm: &Adjustment,
     yzm: &Adjustment,
+    curr_adj: &Adjustment,
     cr: &Context,
     width: f64,
     height: f64,
@@ -484,31 +485,36 @@ fn draw_graphs(
         // // And we can draw something in the drawing area
         // We need to clone plotvals each time we make a call to LineSeries and PointSeries
         let _ = chart.draw_series(LineSeries::new(plotvals.clone(), color));
-        let current = 50;
-        let hair_x = plotvals[current].0;
-        let hair_y_min = plot_range.clone().0.start;
-        let hair_y_max = plot_range.clone().1.end;
-        let mut hairlinevals: Vec<(f32, f32)> = Vec::new();
-        hairlinevals.push((hair_x, hair_y_min));
-        hairlinevals.push((hair_x, hair_y_max));
-        // let hairlinevals = vec![[(hair_x, hair_y_min)], [(hair_x, hair_y_max)]];
-        let _ = chart.draw_series(DashedLineSeries::new(
-            hairlinevals,
-            1,
-            4,
-            ShapeStyle {
-                color: BLACK.mix(1.0),
-                filled: false,
-                stroke_width: 1,
-            },
-        ));
+        // Calculate the hairline.
+        let idx = curr_adj.value().trunc() as usize;
+        if idx > 0 && idx < plotvals.len() - 1 {
+            let hair_x = plotvals[idx].0;
+            let hair_y_min = plot_range.clone().0.start;
+            let hair_y_max = plot_range.clone().1.end;
+            let mut hairlinevals: Vec<(f32, f32)> = Vec::new();
+            hairlinevals.push((hair_x, hair_y_min));
+            hairlinevals.push((hair_x, hair_y_max));
+            let _ = chart.draw_series(DashedLineSeries::new(
+                hairlinevals,
+                1,
+                4,
+                ShapeStyle {
+                    color: BLACK.mix(1.0),
+                    filled: false,
+                    stroke_width: 1,
+                },
+            ));
+        }
     }
     let _ = root.present();
     // --- Custom Drawing Logic Ends Here ---
 }
 
 // Build drawing area.
-fn build_da(data: &Vec<FitDataRecord>) -> (DrawingArea, Adjustment, Adjustment) {
+fn build_da(
+    data: &Vec<FitDataRecord>,
+    current_pos: &Adjustment,
+) -> (DrawingArea, Adjustment, Adjustment) {
     let drawing_area: DrawingArea = DrawingArea::builder().build();
     // Need to clone to use inside the closure.
     let d = data.clone();
@@ -543,8 +549,17 @@ fn build_da(data: &Vec<FitDataRecord>) -> (DrawingArea, Adjustment, Adjustment) 
 
     let x_zoom = xzm.clone();
     let y_zoom = yzm.clone();
+    let curr_adj = current_pos.clone();
     drawing_area.set_draw_func(move |_drawing_area, cr, width, height| {
-        draw_graphs(&d, &x_zoom, &y_zoom, cr, width as f64, height as f64);
+        draw_graphs(
+            &d,
+            &x_zoom,
+            &y_zoom,
+            &curr_adj,
+            cr,
+            width as f64,
+            height as f64,
+        );
     });
     return (drawing_area, xzm, yzm);
 }
@@ -881,6 +896,20 @@ fn build_gui(app: &Application) {
     y_zoom_scale.set_draw_value(false); // Ensure the value is not displayed on the scale itself
     //    scale.set_digits(1);
 
+    let current_pos = Adjustment::builder()
+        // The minimum value
+        .lower(0.0)
+        // The maximum value
+        .upper(1.0)
+        // Small step increment (for arrow keys/buttons)
+        .step_increment(0.1)
+        // Large step increment (for Page Up/Page Down keys)
+        .page_increment(0.2)
+        // The size of the viewable area (not often used for SpinButton, usually 0.0)
+        .page_size(0.0)
+        .build();
+    current_pos.set_value(1.0);
+
     btn.connect_clicked(clone!(
         #[strong]
         win,
@@ -892,6 +921,8 @@ fn build_gui(app: &Application) {
         text_buffer,
         #[strong]
         y_zoom_scale,
+        #[strong]
+        current_pos,
         move |_| {
             // 1. Create the Native Dialog
             // Notice the arguments: Title, Parent Window, Action, Accept Label, Cancel Label
@@ -913,6 +944,8 @@ fn build_gui(app: &Application) {
                 text_buffer,
                 #[strong]
                 y_zoom_scale,
+                #[strong]
+                current_pos,
                 move |dialog, response| {
                     if response == ResponseType::Accept {
                         // Extract the file path
@@ -936,7 +969,7 @@ fn build_gui(app: &Application) {
                                 // Read the fit file and create the map and graph drawing area.
                                 if let Ok(data) = fitparser::from_reader(&mut file) {
                                     let shumate_map = build_map(&data);
-                                    let (da, _, yzm) = build_da(&data);
+                                    let (da, _, yzm) = build_da(&data, &current_pos);
                                     let (width, _height) = get_geometry();
                                     let da_height = 0.7 * height as f32;
                                     let da_width = 0.45 * width as f32;

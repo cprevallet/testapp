@@ -11,7 +11,7 @@ use gtk4::{
     TextView, gdk,
 };
 use libshumate::prelude::*;
-use libshumate::{Marker, SimpleMap};
+use libshumate::{Coordinate, Marker, PathLayer, SimpleMap};
 use plotters::prelude::*;
 use plotters::style::full_palette::BROWN;
 use plotters::style::full_palette::CYAN;
@@ -625,21 +625,21 @@ fn add_marker_layer_to_map(map: &SimpleMap, marker_points: Vec<(f32, f32)>, symb
     map.add_overlay_layer(&marker_layer);
 }
 
-// Adds a PathLayer with a path of given coordinates to the map.
-// fn add_path_layer_to_map(map: &SimpleMap, path_points: Vec<(f32, f32)>) {
-//     // Define the RGBA color using the builder pattern for gtk4::gdk::RGBA
-//     let blue = gdk::RGBA::parse("blue").expect("Failed to parse color");
-//     let viewport = map.viewport().expect("No viewport.");
-//     let path_layer = PathLayer::new(&viewport);
-//     path_layer.set_stroke_color(Some(&blue));
-//     path_layer.set_stroke_width(3.0); // Thickness in pixels
-//     for (lat, lon) in path_points {
-//         let coord = Coordinate::new_full(semi_to_degrees(lat), semi_to_degrees(lon));
-//         path_layer.add_node(&coord);
-//     }
-//     // Add the layer to the map
-//     map.add_overlay_layer(&path_layer);
-// }
+//Adds a PathLayer with a path of given coordinates to the map.
+fn add_path_layer_to_map(map: &SimpleMap, path_points: Vec<(f32, f32)>) {
+    // Define the RGBA color using the builder pattern for gtk4::gdk::RGBA
+    let blue = gdk::RGBA::parse("blue").expect("Failed to parse color");
+    let viewport = map.viewport().expect("No viewport.");
+    let path_layer = PathLayer::new(&viewport);
+    path_layer.set_stroke_color(Some(&blue));
+    path_layer.set_stroke_width(3.0); // Thickness in pixels
+    for (lat, lon) in path_points {
+        let coord = Coordinate::new_full(semi_to_degrees(lat), semi_to_degrees(lon));
+        path_layer.add_node(&coord);
+    }
+    // Add the layer to the map
+    map.add_overlay_layer(&path_layer);
+}
 
 // Helper function to return the date a run started on.
 fn get_run_start_date(data: &Vec<FitDataRecord>) -> (i32, u32, u32) {
@@ -710,8 +710,8 @@ fn build_map(data: &Vec<FitDataRecord>) -> SimpleMap {
     // Get values from fit file.
     let run_path = get_xy(&data, "position_lat", "position_long");
     // Call the function to add the path layer
-    //    add_path_layer_to_map(&map, run_path);
-    add_marker_layer_to_map(&map, run_path, get_symbol(&data));
+    add_path_layer_to_map(&map, run_path.clone());
+    add_marker_layer_to_map(&map, run_path.clone(), get_symbol(&data));
     let viewport = map.viewport().expect("Couldn't get viewport.");
     // You may want to set an initial center and zoom level.
     let nec_lat = get_sess_record_field(data.clone(), "nec_lat");

@@ -981,7 +981,7 @@ fn build_gui(app: &Application) {
                                     let curr_pos_scale =
                                         Scale::with_range(Orientation::Vertical, 0.0, 1.0, 0.05);
 
-                                    // 3. Construct embedded widgets based on parsed fit data.
+                                    // 3. Instantiate embedded widgets based on parsed fit data.
                                     let (shumate_map, shumate_marker_layer) = build_map(&data);
                                     let (da, _, yzm, curr_pos) = build_da(&data);
                                     let text_buffer = text_view.buffer();

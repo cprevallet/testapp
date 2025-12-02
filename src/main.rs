@@ -910,18 +910,11 @@ fn build_gui(app: &Application) {
         .title("SiliconSneaker II")
         .build();
 
+    let main_box = gtk4::Box::new(Orientation::Horizontal, 10);
     let outer_box = gtk4::Box::new(Orientation::Vertical, 10);
     // Main horizontal container to hold the two frames side-by-side
-    let main_box = gtk4::Box::new(Orientation::Horizontal, 10);
-    let left_frame_box = gtk4::Box::new(Orientation::Vertical, 10);
-    let right_frame_box = gtk4::Box::new(Orientation::Horizontal, 10);
-    let text_view = TextView::builder().build();
-    text_view.set_monospace(true);
-    let text_buffer = text_view.buffer();
+
     main_box.set_vexpand(true);
-    main_box.set_hexpand(true);
-    let frame_left = Frame::builder().build();
-    let frame_right = Frame::builder().build();
     let btn = Button::with_label("Select a file...");
     let y_zoom_scale = Scale::with_range(Orientation::Vertical, 0.5, 4.0, 0.1);
     y_zoom_scale.set_draw_value(false); // Ensure the value is not displayed on the scale itself
@@ -933,11 +926,7 @@ fn build_gui(app: &Application) {
         #[strong]
         win,
         #[strong]
-        frame_left,
-        #[strong]
-        frame_right,
-        #[strong]
-        text_buffer,
+        main_box,
         #[strong]
         y_zoom_scale,
         #[strong]
@@ -956,11 +945,7 @@ fn build_gui(app: &Application) {
             // 2. Connect to the response signal
             native.connect_response(clone!(
                 #[strong]
-                frame_left,
-                #[strong]
-                frame_right,
-                #[strong]
-                text_buffer,
+                main_box,
                 #[strong]
                 y_zoom_scale,
                 #[strong]
@@ -987,10 +972,41 @@ fn build_gui(app: &Application) {
                                 };
                                 // Read the fit file and create the map and graph drawing area.
                                 if let Ok(data) = fitparser::from_reader(&mut file) {
+                                    // Construct embedded objects based on parsed data.
                                     let (shumate_map, shumate_marker_layer) = build_map(&data);
                                     let (da, _, yzm, curr_pos) = build_da(&data);
-                                    frame_left.set_child(Some(&shumate_map));
+                                    let text_view = TextView::builder().build();
+                                    let text_buffer = text_view.buffer();
+                                    build_summary(&data, &text_buffer);
 
+                                    // Construct the UI objects.
+                                    let frame_left = Frame::builder().build();
+                                    let frame_right = Frame::builder().build();
+                                    let left_frame_box = gtk4::Box::new(Orientation::Vertical, 10);
+                                    let right_frame_box =
+                                        gtk4::Box::new(Orientation::Horizontal, 10);
+                                    text_view.set_monospace(true);
+                                    main_box.set_hexpand(true);
+                                    // Inner box contains only the map and text summary
+                                    right_frame_box.append(&frame_right);
+                                    right_frame_box.append(&y_zoom_scale);
+                                    right_frame_box.append(&curr_pos_scale);
+                                    left_frame_box.append(&frame_left);
+                                    left_frame_box.set_homogeneous(true);
+                                    // TextViews do not scroll by default; they must be wrapped in a ScrolledWindow.
+                                    let scrolled_window = ScrolledWindow::builder()
+                                        //        .hscrollbar_policy:(gtk::PolicyType::Never) // Disable horizontal scrolling
+                                        // .min_content_width(300)
+                                        // .min_content_height(200)
+                                        .child(&text_view)
+                                        .build();
+                                    scrolled_window.set_size_request(500, 300);
+                                    left_frame_box.append(&scrolled_window);
+                                    // Main box contains all of the above plus the graphs.
+                                    main_box.append(&left_frame_box);
+                                    main_box.append(&right_frame_box);
+                                    //    main_box.set_homogeneous(true); // Ensures both frames take exactly half the window width
+                                    // Outer box contains the above and the file load button.
                                     let (width, height) = get_geometry();
                                     //println!("{}{}", width, height);
                                     let w_height = (height - 300) as f32;
@@ -1002,6 +1018,7 @@ fn build_gui(app: &Application) {
                                         .child(&da)
                                         .build();
                                     frame_right.set_child(Some(&da_window));
+                                    frame_left.set_child(Some(&shumate_map));
                                     da_window.set_size_request(
                                         w_width.trunc() as i32,
                                         w_height.trunc() as i32,
@@ -1072,7 +1089,6 @@ fn build_gui(app: &Application) {
                                             shumate_map.queue_draw();
                                         },
                                     ));
-                                    build_summary(&data, &text_buffer);
                                 }
                             }
                         }
@@ -1090,26 +1106,6 @@ fn build_gui(app: &Application) {
         }
     )); //button-connect-clicked
 
-    // Inner box contains only the map and text summary
-    right_frame_box.append(&frame_right);
-    right_frame_box.append(&y_zoom_scale);
-    right_frame_box.append(&curr_pos_scale);
-    left_frame_box.append(&frame_left);
-    left_frame_box.set_homogeneous(true);
-    // TextViews do not scroll by default; they must be wrapped in a ScrolledWindow.
-    let scrolled_window = ScrolledWindow::builder()
-        //        .hscrollbar_policy:(gtk::PolicyType::Never) // Disable horizontal scrolling
-        // .min_content_width(300)
-        // .min_content_height(200)
-        .child(&text_view)
-        .build();
-    scrolled_window.set_size_request(500, 300);
-    left_frame_box.append(&scrolled_window);
-    // Main box contains all of the above plus the graphs.
-    main_box.append(&left_frame_box);
-    main_box.append(&right_frame_box);
-    //    main_box.set_homogeneous(true); // Ensures both frames take exactly half the window width
-    // Outer box contains the above and the file load button.
     outer_box.append(&btn);
     outer_box.append(&main_box);
     win.set_child(Some(&outer_box));

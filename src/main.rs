@@ -976,12 +976,23 @@ fn build_gui(app: &Application) {
                                     let (shumate_map, shumate_marker_layer) = build_map(&data);
                                     let (da, _, yzm, curr_pos) = build_da(&data);
                                     let (width, _height) = get_geometry();
-                                    let da_height = 0.7 * height as f32;
-                                    let da_width = 0.45 * width as f32;
+                                    frame_left.set_child(Some(&shumate_map));
+
+                                    let da_height = 0.5 * height as f32;
+                                    let da_width = 0.5 * width as f32;
                                     da.set_content_height(da_height as i32);
                                     da.set_content_width(da_width as i32);
-                                    frame_left.set_child(Some(&shumate_map));
-                                    frame_right.set_child(Some(&da));
+                                    let da_window = ScrolledWindow::builder()
+                                        //        .hscrollbar_policy:(gtk::PolicyType::Never) // Disable horizontal scrolling
+                                        // .min_content_width(300)
+                                        // .min_content_height(200)
+                                        .child(&da)
+                                        .build();
+                                    frame_right.set_child(Some(&da_window));
+                                    da_window.set_size_request(
+                                        da_width.trunc() as i32,
+                                        da_height.trunc() as i32,
+                                    );
                                     y_zoom_scale.set_adjustment(&yzm);
                                     y_zoom_scale.set_width_request(30);
                                     // Redraw the drawing area when the zoom changes.
@@ -1065,15 +1076,15 @@ fn build_gui(app: &Application) {
     // TextViews do not scroll by default; they must be wrapped in a ScrolledWindow.
     let scrolled_window = ScrolledWindow::builder()
         //        .hscrollbar_policy:(gtk::PolicyType::Never) // Disable horizontal scrolling
-        .min_content_width(300)
-        .min_content_height(200)
+        // .min_content_width(300)
+        // .min_content_height(200)
         .child(&text_view)
         .build();
     left_frame_box.append(&scrolled_window);
     // Main box contains all of the above plus the graphs.
     main_box.append(&left_frame_box);
     main_box.append(&right_frame_box);
-    main_box.set_homogeneous(true); // Ensures both frames take exactly half the window width
+    //    main_box.set_homogeneous(true); // Ensures both frames take exactly half the window width
     // Outer box contains the above and the file load button.
     outer_box.append(&btn);
     outer_box.append(&main_box);

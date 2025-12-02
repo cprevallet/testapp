@@ -970,53 +970,42 @@ fn build_gui(app: &Application) {
                                         }
                                     },
                                 };
-                                // Read the fit file and create the map and graph drawing area.
+                                // Read the fit file.
                                 if let Ok(data) = fitparser::from_reader(&mut file) {
-                                    // Construct embedded objects based on parsed data.
-                                    let (shumate_map, shumate_marker_layer) = build_map(&data);
-                                    let (da, _, yzm, curr_pos) = build_da(&data);
+                                    // Instantiate the UI widget objects.
+                                    main_box.set_hexpand(true);
                                     let text_view = TextView::builder().build();
-                                    let text_buffer = text_view.buffer();
-                                    build_summary(&data, &text_buffer);
-
-                                    // Construct the UI objects.
                                     let frame_left = Frame::builder().build();
                                     let frame_right = Frame::builder().build();
                                     let left_frame_box = gtk4::Box::new(Orientation::Vertical, 10);
                                     let right_frame_box =
                                         gtk4::Box::new(Orientation::Horizontal, 10);
                                     text_view.set_monospace(true);
-                                    main_box.set_hexpand(true);
-                                    // Inner box contains only the map and text summary
+                                    let scrolled_window =
+                                        ScrolledWindow::builder().child(&text_view).build();
+
+                                    // Construct embedded display objects based on parsed data.
+                                    let (shumate_map, shumate_marker_layer) = build_map(&data);
+                                    let (da, _, yzm, curr_pos) = build_da(&data);
+                                    let text_buffer = text_view.buffer();
+                                    build_summary(&data, &text_buffer);
+
+                                    // Layout the widgets and connect embedded objects.
+                                    scrolled_window.set_size_request(500, 300);
+                                    left_frame_box.append(&frame_left);
+                                    left_frame_box.set_homogeneous(true);
+                                    left_frame_box.append(&scrolled_window);
                                     right_frame_box.append(&frame_right);
                                     right_frame_box.append(&y_zoom_scale);
                                     right_frame_box.append(&curr_pos_scale);
-                                    left_frame_box.append(&frame_left);
-                                    left_frame_box.set_homogeneous(true);
-                                    // TextViews do not scroll by default; they must be wrapped in a ScrolledWindow.
-                                    let scrolled_window = ScrolledWindow::builder()
-                                        //        .hscrollbar_policy:(gtk::PolicyType::Never) // Disable horizontal scrolling
-                                        // .min_content_width(300)
-                                        // .min_content_height(200)
-                                        .child(&text_view)
-                                        .build();
-                                    scrolled_window.set_size_request(500, 300);
-                                    left_frame_box.append(&scrolled_window);
                                     // Main box contains all of the above plus the graphs.
                                     main_box.append(&left_frame_box);
                                     main_box.append(&right_frame_box);
                                     //    main_box.set_homogeneous(true); // Ensures both frames take exactly half the window width
-                                    // Outer box contains the above and the file load button.
                                     let (width, height) = get_geometry();
-                                    //println!("{}{}", width, height);
                                     let w_height = (height - 300) as f32;
                                     let w_width = (width - 600) as f32;
-                                    let da_window = ScrolledWindow::builder()
-                                        //        .hscrollbar_policy:(gtk::PolicyType::Never) // Disable horizontal scrolling
-                                        // .min_content_width(300)
-                                        // .min_content_height(200)
-                                        .child(&da)
-                                        .build();
+                                    let da_window = ScrolledWindow::builder().child(&da).build();
                                     frame_right.set_child(Some(&da_window));
                                     frame_left.set_child(Some(&shumate_map));
                                     da_window.set_size_request(

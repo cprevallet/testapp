@@ -28,6 +28,16 @@ fn main() {
     app.run();
 }
 
+fn get_units(units: &DropDown) -> String {
+    let model = units.model().expect("No units model.");
+    if let Some(item_obj) = model.item(units.selected()) {
+        if let Ok(string_obj) = item_obj.downcast::<StringObject>() {
+            return String::from(string_obj.string());
+        }
+    }
+    return String::from("");
+}
+
 // Calculate the vector average.
 fn mean(data: &Vec<f32>) -> f32 {
     let count = data.len();
@@ -531,7 +541,10 @@ fn draw_graphs(
 }
 
 // Build drawing area.
-fn build_da(data: &Vec<FitDataRecord>) -> (DrawingArea, Adjustment, Adjustment, Adjustment) {
+fn build_da(
+    data: &Vec<FitDataRecord>,
+    units: &DropDown,
+) -> (DrawingArea, Adjustment, Adjustment, Adjustment) {
     let drawing_area: DrawingArea = DrawingArea::builder().build();
     // Need to clone to use inside the closure.
     let d = data.clone();
@@ -715,7 +728,7 @@ fn build_map(data: &Vec<FitDataRecord>) -> (SimpleMap, MarkerLayer) {
 }
 
 // Build the map.
-fn build_summary(data: &Vec<FitDataRecord>, text_buffer: &TextBuffer) {
+fn build_summary(data: &Vec<FitDataRecord>, units: &DropDown, text_buffer: &TextBuffer) {
     text_buffer.set_text("File loaded.");
     // Clear out anything in the buffer.
     let mut start = text_buffer.start_iter();
@@ -886,7 +899,12 @@ fn get_geometry(window: &ApplicationWindow) -> (i32, i32) {
 
 // This is the main body of the program.  After reading the fit file,
 // create and display the rest of the UI.
-fn parse_and_display_run(win: &ApplicationWindow, main_box: &gtk4::Box, mut file: File) {
+fn parse_and_display_run(
+    win: &ApplicationWindow,
+    main_box: &gtk4::Box,
+    mut file: File,
+    units: &DropDown,
+) {
     if let Ok(data) = fitparser::from_reader(&mut file) {
         // 1. Clear out any previous widgets upon opening a second file.
         while let Some(child) = main_box.last_child() {
@@ -909,9 +927,9 @@ fn parse_and_display_run(win: &ApplicationWindow, main_box: &gtk4::Box, mut file
 
         // 3. Instantiate embedded widgets based on parsed fit data.
         let (shumate_map, shumate_marker_layer) = build_map(&data);
-        let (da, _, yzm, curr_pos) = build_da(&data);
+        let (da, _, yzm, curr_pos) = build_da(&data, &units);
         let text_buffer = text_view.buffer();
-        build_summary(&data, &text_buffer);
+        build_summary(&data, &units, &text_buffer);
 
         // 4. Connect embedded widgets to their parents.
         da_window.set_child(Some(&da));
@@ -1038,27 +1056,16 @@ fn build_gui(app: &Application) {
         .margin_start(5)
         .margin_end(5)
         .build();
-
-    let uom = StringList::new(&["English", "Metric"]);
+    // Unit of measure system.
+    let uom = StringList::new(&["Metric", "English"]);
     let units = DropDown::builder().model(&uom).build();
-    fn get_units(units: &DropDown) -> String {
-        //        if let Some(item_obj) = uom.item(units.selected()) {
-        let model = units.model().expect("No units model.");
-        if let Some(item_obj) = model.item(units.selected()) {
-            if let Ok(string_obj) = item_obj.downcast::<StringObject>() {
-                return String::from(string_obj.string());
-                //                println!("{:?}", string_obj.string());
-            }
-        }
-        return String::from("");
-    }
-    println!("{:?}", get_units(&units).as_str());
-
     btn.connect_clicked(clone!(
         #[strong]
         win,
         #[strong]
         main_box,
+        #[strong]
+        units,
         move |_| {
             // 1. Create the Native Dialog
             // Notice the arguments: Title, Parent Window, Action, Accept Label, Cancel Label
@@ -1076,6 +1083,8 @@ fn build_gui(app: &Application) {
                 win,
                 #[strong]
                 main_box,
+                #[strong]
+                units,
                 move |dialog, response| {
                     if response == ResponseType::Accept {
                         // Extract the file path
@@ -1096,7 +1105,7 @@ fn build_gui(app: &Application) {
                                         }
                                     },
                                 };
-                                parse_and_display_run(&win, &main_box, file);
+                                parse_and_display_run(&win, &main_box, file, &units);
                             }
                         }
                     } else {

@@ -900,7 +900,10 @@ fn parse_and_display_run(win: &ApplicationWindow, main_box: &gtk4::Box, mut file
         let left_frame_box = gtk4::Box::new(Orientation::Vertical, 10);
         let right_frame_box = gtk4::Box::new(Orientation::Horizontal, 10);
         let scrolled_window = ScrolledWindow::builder().child(&text_view).build();
-        let da_window = ScrolledWindow::builder().build();
+        let da_window = ScrolledWindow::builder()
+            .vexpand(true)
+            .hexpand(true)
+            .build();
         let y_zoom_scale = Scale::with_range(Orientation::Vertical, 0.5, 4.0, 0.1);
         let curr_pos_scale = Scale::with_range(Orientation::Vertical, 0.0, 1.0, 0.05);
 
@@ -1009,10 +1012,16 @@ fn build_gui(app: &Application) {
 
     // Main horizontal container to hold the two frames side-by-side,
     // outer box wraps main_box.
-    let outer_box = gtk4::Box::new(Orientation::Vertical, 10);
-    let main_box = gtk4::Box::new(Orientation::Horizontal, 10);
-    main_box.set_vexpand(true);
-    main_box.set_hexpand(true);
+    let outer_box = gtk4::Box::builder()
+        .orientation(Orientation::Vertical)
+        .spacing(10)
+        .build();
+    let main_box = gtk4::Box::builder()
+        .orientation(Orientation::Horizontal)
+        .vexpand(true)
+        .hexpand(true)
+        .spacing(10)
+        .build();
 
     // Button with icon and label.
     let button_content = gtk4::Box::new(Orientation::Horizontal, 6);

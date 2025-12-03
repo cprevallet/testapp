@@ -1004,6 +1004,7 @@ fn build_gui(app: &Application) {
                                     );
                                     y_zoom_scale.set_width_request(30);
                                     curr_pos_scale.set_width_request(30);
+                                    win.unmaximize();
 
                                     // 7. Configure widgets not handled during instantiation.
                                     y_zoom_scale.set_draw_value(false); // Ensure the value is not displayed on the scale itself
@@ -1083,5 +1084,6 @@ fn build_gui(app: &Application) {
     outer_box.append(&btn);
     outer_box.append(&main_box);
     win.set_child(Some(&outer_box));
+    win.maximize();
     win.present();
 } // build_gui

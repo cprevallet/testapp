@@ -886,7 +886,7 @@ fn get_geometry(window: &ApplicationWindow) -> (i32, i32) {
 }
 
 // This is the main body of the program.  After reading the fit file,
-// create and display the UI.
+// create and display the rest of the UI.
 fn parse_and_display_run(win: &ApplicationWindow, main_box: &gtk4::Box, mut file: File) {
     if let Ok(data) = fitparser::from_reader(&mut file) {
         // 1. Clear out any previous widgets upon opening a second file.

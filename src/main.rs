@@ -1041,8 +1041,10 @@ fn build_gui(app: &Application) {
 
     let uom = StringList::new(&["English", "Metric"]);
     let units = DropDown::builder().model(&uom).build();
-    fn get_units(uom: &StringList, units: &DropDown) -> String {
-        if let Some(item_obj) = uom.item(units.selected()) {
+    fn get_units(units: &DropDown) -> String {
+        //        if let Some(item_obj) = uom.item(units.selected()) {
+        let model = units.model().expect("No units model.");
+        if let Some(item_obj) = model.item(units.selected()) {
             if let Ok(string_obj) = item_obj.downcast::<StringObject>() {
                 return String::from(string_obj.string());
                 //                println!("{:?}", string_obj.string());
@@ -1050,7 +1052,7 @@ fn build_gui(app: &Application) {
         }
         return String::from("");
     }
-    println!("{:?}", get_units(&uom, &units).as_str());
+    println!("{:?}", get_units(&units).as_str());
 
     btn.connect_clicked(clone!(
         #[strong]

@@ -6,8 +6,8 @@ use gtk4::glib::clone;
 use gtk4::prelude::*;
 use gtk4::{
     Adjustment, Application, ApplicationWindow, Button, DrawingArea, FileChooserAction,
-    FileChooserNative, Frame, Orientation, ResponseType, Scale, ScrolledWindow, TextBuffer,
-    TextView, gdk,
+    FileChooserNative, Frame, Image, Label, Orientation, ResponseType, Scale, ScrolledWindow,
+    TextBuffer, TextView, gdk,
 };
 use libshumate::prelude::*;
 use libshumate::{Coordinate, Marker, MarkerLayer, PathLayer, SimpleMap};
@@ -1013,7 +1013,22 @@ fn build_gui(app: &Application) {
     let main_box = gtk4::Box::new(Orientation::Horizontal, 10);
     main_box.set_vexpand(true);
     main_box.set_hexpand(true);
-    let btn = Button::with_label("Select a file...");
+
+    // Button with icon and label.
+    let button_content = gtk4::Box::new(Orientation::Horizontal, 6);
+    button_content.set_halign(gtk4::Align::Center);
+    // "document-open" is a standard Freedesktop icon name.
+    let icon = Image::from_icon_name("document-open");
+    let label = Label::new(Some("Select a FIT file..."));
+    button_content.append(&icon);
+    button_content.append(&label);
+    let btn = Button::builder()
+        .child(&button_content)
+        .margin_top(5)
+        .margin_bottom(5)
+        .margin_start(5)
+        .margin_end(5)
+        .build();
 
     btn.connect_clicked(clone!(
         #[strong]

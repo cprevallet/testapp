@@ -1150,28 +1150,21 @@ fn parse_and_display_run(
     data: &Vec<FitDataRecord>,
     units_widget: &DropDown,
 ) {
-    // 1. Clear out any previous widgets upon opening a second file.
-    // while let Some(child) = main_pane.last_child() {
-    //     // main_pane.set_start_child(None);
-    //     // main_pane.set_end_child(None);
-    // }
-
-    // 2. Instantiate the main UI widgets.
+    // 1. Instantiate the main UI widgets.
     let text_view = TextView::builder().monospace(true).margin_start(10).build();
     let frame_left = Frame::builder().build();
     let frame_right = Frame::builder().build();
-    // let left_frame_box = gtk4::Box::new(Orientation::Vertical, 10);
     let left_frame_pane = gtk4::Paned::builder()
         .orientation(Orientation::Vertical)
         .build();
-    let right_frame_box = gtk4::Box::new(Orientation::Horizontal, 10);
+    let right_frame_pane = gtk4::Paned::builder()
+        .orientation(Orientation::Horizontal)
+        .build();
     let scrolled_window = ScrolledWindow::builder().child(&text_view).build();
     let da_window = ScrolledWindow::builder()
         .vexpand(true)
         .hexpand(true)
         .build();
-    //    let y_zoom_scale = Scale::with_range(Orientation::Vertical, 0.5, 4.0, 0.1);
-    //    let curr_pos_scale = Scale::with_range(Orientation::Vertical, 0.0, 1.0, 0.05);
     let curr_pos_adj = Adjustment::builder()
         .lower(0.0)
         .upper(1.0)
@@ -1206,36 +1199,33 @@ fn parse_and_display_run(
     let y_zoom_label = Label::new(Some("🔍"));
     let controls_box = gtk4::Box::new(Orientation::Vertical, 10);
 
-    // 3. Instantiate embedded widgets based on parsed fit data.
+    // 2. Instantiate embedded widgets based on parsed fit data.
     let (shumate_map, shumate_marker_layer) = build_map(&data);
     let (da, _, yzm, curr_pos) = build_da(&data, &units_widget);
     let text_buffer = text_view.buffer();
     build_summary(&data, &units_widget, &text_buffer);
 
-    // 4. Connect embedded widgets to their parents.
+    // 3. Connect embedded widgets to their parents.
     da_window.set_child(Some(&da));
     frame_right.set_child(Some(&da_window));
     frame_left.set_child(Some(&shumate_map));
     y_zoom_scale.set_adjustment(&yzm);
     curr_pos_scale.set_adjustment(&curr_pos);
 
-    // 5. Configure the widget layout.
-    // left_frame_box.append(&frame_left);
-    // left_frame_box.set_homogeneous(true);
-    // left_frame_box.append(&scrolled_window);
+    // 4. Configure the widget layout.
     left_frame_pane.set_start_child(Some(&frame_left));
     left_frame_pane.set_end_child(Some(&scrolled_window));
-    right_frame_box.append(&frame_right);
+    right_frame_pane.set_start_child(Some(&frame_right));
     controls_box.append(&y_zoom_label);
     controls_box.append(&y_zoom_scale);
     controls_box.append(&curr_pos_label);
     controls_box.append(&curr_pos_scale);
-    right_frame_box.append(&controls_box);
+    right_frame_pane.set_end_child(Some(&controls_box));
     // Main box contains all of the above plus the graphs.
     main_pane.set_start_child(Some(&left_frame_pane));
-    main_pane.set_end_child(Some(&right_frame_box));
+    main_pane.set_end_child(Some(&right_frame_pane));
 
-    // 6. Size the widgets.
+    // 5. Size the widgets.
     let (width, height) = get_geometry(&win);
     let win_width = (FRACT_OF_SCREEN * width as f32).trunc() as i32;
     let win_height = (FRACT_OF_SCREEN * height as f32).trunc() as i32;
@@ -1251,11 +1241,11 @@ fn parse_and_display_run(
     );
     win.unmaximize();
 
-    // 7. Configure widgets not handled during instantiation.
+    // 6. Configure widgets not handled during instantiation.
     y_zoom_scale.set_draw_value(false); // Ensure the value is not displayed on the scale itself
     curr_pos_scale.set_draw_value(false); // Ensure the value is not displayed on the scale itself
 
-    // 8. Establish call-back routines for widget event handling.
+    // 7. Establish call-back routines for widget event handling.
     // Redraw the drawing area when the zoom changes.
     y_zoom_scale.adjustment().connect_value_changed(clone!(
         #[strong]
@@ -1318,12 +1308,6 @@ fn build_gui(app: &Application) {
         .orientation(Orientation::Vertical)
         .spacing(10)
         .build();
-    // let main_pane = gtk4::Box::builder()
-    //     .orientation(Orientation::Horizontal)
-    //     .vexpand(true)
-    //     .hexpand(true)
-    //     .spacing(10)
-    //     .build();
     let button_box = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
         .vexpand(false)

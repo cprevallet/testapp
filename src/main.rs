@@ -1354,6 +1354,16 @@ fn build_gui(app: &Application) {
         .height_request(30)
         .width_request(100)
         .build();
+    let about_label = Label::new(Some("About"));
+    let about_btn = Button::builder()
+        .child(&about_label)
+        .margin_top(5)
+        .margin_bottom(5)
+        .margin_start(5)
+        .margin_end(5)
+        .height_request(30)
+        .width_request(50)
+        .build();
 
     btn.connect_clicked(clone!(
         #[strong]
@@ -1431,8 +1441,28 @@ fn build_gui(app: &Application) {
         }
     )); //button-connect-clicked
 
+    about_btn.connect_clicked(clone!(
+        #[strong]
+        win,
+        move |_| {
+            let dialog = gtk4::AboutDialog::builder()
+                .transient_for(&win)
+                .modal(true)
+                .program_name("SiliconSneaker II")
+                .version("1.0.0")
+                .copyright("Copyright © 2025")
+                .comments("View your run files on the desktop!")
+                .authors(vec![
+                    "Craig S. Prevallet <penguintx@hotmail.com>".to_string(),
+                ])
+                .build();
+            dialog.present();
+        }
+    )); //button-connect-clicked
+
     button_box.append(&btn);
     button_box.append(&units_widget);
+    button_box.append(&about_btn);
     outer_box.append(&button_box);
     outer_box.append(&main_box);
     win.set_child(Some(&outer_box));

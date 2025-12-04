@@ -1135,8 +1135,39 @@ fn parse_and_display_run(
         .vexpand(true)
         .hexpand(true)
         .build();
-    let y_zoom_scale = Scale::with_range(Orientation::Vertical, 0.5, 4.0, 0.1);
-    let curr_pos_scale = Scale::with_range(Orientation::Vertical, 0.0, 1.0, 0.05);
+    //    let y_zoom_scale = Scale::with_range(Orientation::Vertical, 0.5, 4.0, 0.1);
+    //    let curr_pos_scale = Scale::with_range(Orientation::Vertical, 0.0, 1.0, 0.05);
+    let curr_pos_adj = Adjustment::builder()
+        .lower(0.0)
+        .upper(1.0)
+        .step_increment(0.05)
+        .value(0.0)
+        .build();
+    let curr_pos_scale = Scale::builder()
+        .orientation(Orientation::Horizontal)
+        .adjustment(&curr_pos_adj)
+        .draw_value(false)
+        .vexpand(false)
+        .width_request(90)
+        .height_request(30)
+        .build();
+    let y_zoom_adj = Adjustment::builder()
+        .lower(0.5)
+        .upper(4.0)
+        .step_increment(0.1)
+        .value(2.0)
+        .build();
+    let y_zoom_scale = Scale::builder()
+        .orientation(Orientation::Horizontal)
+        .adjustment(&y_zoom_adj)
+        .draw_value(false)
+        .vexpand(false)
+        .width_request(90)
+        .height_request(30)
+        .build();
+    let curr_pos_label = Label::new(Some("🏃‍➡️"));
+    let y_zoom_label = Label::new(Some("🔍"));
+    let controls_box = gtk4::Box::new(Orientation::Vertical, 10);
 
     // 3. Instantiate embedded widgets based on parsed fit data.
     let (shumate_map, shumate_marker_layer) = build_map(&data);
@@ -1156,8 +1187,11 @@ fn parse_and_display_run(
     left_frame_box.set_homogeneous(true);
     left_frame_box.append(&scrolled_window);
     right_frame_box.append(&frame_right);
-    right_frame_box.append(&y_zoom_scale);
-    right_frame_box.append(&curr_pos_scale);
+    controls_box.append(&y_zoom_label);
+    controls_box.append(&y_zoom_scale);
+    controls_box.append(&curr_pos_label);
+    controls_box.append(&curr_pos_scale);
+    right_frame_box.append(&controls_box);
     // Main box contains all of the above plus the graphs.
     main_box.append(&left_frame_box);
     main_box.append(&right_frame_box);
@@ -1176,8 +1210,6 @@ fn parse_and_display_run(
         (0.90 * da_window.height() as f32) as i32,
         (0.90 * da_window.width() as f32) as i32,
     );
-    y_zoom_scale.set_width_request(30);
-    curr_pos_scale.set_width_request(30);
     win.unmaximize();
 
     // 7. Configure widgets not handled during instantiation.

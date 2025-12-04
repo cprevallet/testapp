@@ -480,20 +480,20 @@ fn draw_graphs(
         //let root = root.margin(50, 50, 50, 50);
         // After this point, we should be able to construct a chart context
         if idx == 1 {
-            plotvals = get_xy(&d, &units_widget, "distance", "enhanced_altitude");
+            plotvals = get_xy(&d, &units_widget, "distance", "enhanced_speed");
             if plotvals.len() == 0 {
                 continue;
             }
             plot_range = set_plot_range(&plotvals.clone(), zoom_x, zoom_y);
-            y_formatter = Box::new(num_formatter);
-            caption = "Elevation";
+            y_formatter = Box::new(pace_formatter);
+            caption = "Pace";
             match user_unit {
                 Units::US => {
-                    ylabel = "Elevation(feet)";
+                    ylabel = "Pace(min/mile)";
                     xlabel = "Distance(miles)";
                 }
                 Units::Metric => {
-                    ylabel = "Elevation(m)";
+                    ylabel = "Pace(min/km)";
                     xlabel = "Distance(km)";
                 }
                 Units::None => {
@@ -501,7 +501,7 @@ fn draw_graphs(
                     xlabel = "";
                 }
             }
-            color = &RED;
+            color = &GREEN;
         }
         if idx == 2 {
             plotvals = get_xy(&d, &units_widget, "distance", "heart_rate");
@@ -552,20 +552,20 @@ fn draw_graphs(
             color = &CYAN;
         }
         if idx == 4 {
-            plotvals = get_xy(&d, &units_widget, "distance", "enhanced_speed");
+            plotvals = get_xy(&d, &units_widget, "distance", "enhanced_altitude");
             if plotvals.len() == 0 {
                 continue;
             }
             plot_range = set_plot_range(&plotvals.clone(), zoom_x, zoom_y);
-            y_formatter = Box::new(pace_formatter);
-            caption = "Pace";
+            y_formatter = Box::new(num_formatter);
+            caption = "Elevation";
             match user_unit {
                 Units::US => {
-                    ylabel = "Pace(min/mile)";
+                    ylabel = "Elevation(feet)";
                     xlabel = "Distance(miles)";
                 }
                 Units::Metric => {
-                    ylabel = "Pace(min/km)";
+                    ylabel = "Elevation(m)";
                     xlabel = "Distance(km)";
                 }
                 Units::None => {
@@ -573,7 +573,7 @@ fn draw_graphs(
                     xlabel = "";
                 }
             }
-            color = &GREEN;
+            color = &RED;
         }
         if idx == 5 {
             plotvals = get_xy(&d, &units_widget, "distance", "temperature");

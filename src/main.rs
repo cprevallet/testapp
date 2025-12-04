@@ -1253,6 +1253,14 @@ fn build_gui(app: &Application) {
         .hexpand(true)
         .spacing(10)
         .build();
+    let button_box = gtk4::Box::builder()
+        .orientation(Orientation::Horizontal)
+        .vexpand(false)
+        .hexpand(false)
+        .width_request(200)
+        .height_request(20)
+        .spacing(10)
+        .build();
 
     // Button with icon and label.
     let button_content = gtk4::Box::new(Orientation::Horizontal, 6);
@@ -1268,9 +1276,19 @@ fn build_gui(app: &Application) {
         .margin_bottom(5)
         .margin_start(5)
         .margin_end(5)
+        .height_request(20)
+        .width_request(50)
         .build();
     let uom = StringList::new(&["Metric", "US"]);
-    let units_widget = DropDown::builder().model(&uom).build();
+    let units_widget = DropDown::builder()
+        .model(&uom)
+        .margin_top(5)
+        .margin_bottom(5)
+        .margin_start(5)
+        .margin_end(5)
+        .height_request(20)
+        .width_request(50)
+        .build();
 
     btn.connect_clicked(clone!(
         #[strong]
@@ -1348,8 +1366,9 @@ fn build_gui(app: &Application) {
         }
     )); //button-connect-clicked
 
-    outer_box.append(&btn);
-    outer_box.append(&units_widget);
+    button_box.append(&btn);
+    button_box.append(&units_widget);
+    outer_box.append(&button_box);
     outer_box.append(&main_box);
     win.set_child(Some(&outer_box));
     win.maximize();

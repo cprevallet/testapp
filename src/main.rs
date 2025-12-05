@@ -883,27 +883,29 @@ fn build_map(data: &Vec<FitDataRecord>) -> (Option<SimpleMap>, Option<MarkerLaye
             }
         }
         let marker_layer = add_marker_layer_to_map(&map);
-        let viewport = map.viewport().expect("Couldn't get viewport.");
         // You may want to set an initial center and zoom level.
-        let nec_lat = get_sess_record_field(data.clone(), "nec_lat");
-        let nec_long = get_sess_record_field(data.clone(), "nec_long");
-        let swc_lat = get_sess_record_field(data.clone(), "swc_lat");
-        let swc_long = get_sess_record_field(data.clone(), "swc_long");
-        if !nec_lat.is_nan() & !nec_long.is_nan() & !swc_lat.is_nan() & !swc_long.is_nan() {
-            let center_lat =
-                (semi_to_degrees(nec_lat as f32) + semi_to_degrees(swc_lat as f32)) / 2.0;
-            let center_long =
-                (semi_to_degrees(nec_long as f32) + semi_to_degrees(swc_long as f32)) / 2.0;
-            // println!("{:?}", center_lat);
-            // println!("{:?}", center_long);
-            viewport.set_location(center_lat, center_long);
-        } else {
-            viewport.set_location(29.7601, -95.3701); // e.g. Houston, USA
+        if map.viewport().is_some() {
+            let viewport = map.viewport().unwrap();
+            let nec_lat = get_sess_record_field(data.clone(), "nec_lat");
+            let nec_long = get_sess_record_field(data.clone(), "nec_long");
+            let swc_lat = get_sess_record_field(data.clone(), "swc_lat");
+            let swc_long = get_sess_record_field(data.clone(), "swc_long");
+            if !nec_lat.is_nan() & !nec_long.is_nan() & !swc_lat.is_nan() & !swc_long.is_nan() {
+                let center_lat =
+                    (semi_to_degrees(nec_lat as f32) + semi_to_degrees(swc_lat as f32)) / 2.0;
+                let center_long =
+                    (semi_to_degrees(nec_long as f32) + semi_to_degrees(swc_long as f32)) / 2.0;
+                // println!("{:?}", center_lat);
+                // println!("{:?}", center_long);
+                viewport.set_location(center_lat, center_long);
+            } else {
+                viewport.set_location(29.7601, -95.3701); // e.g. Houston, USA
+            }
+            viewport.set_zoom_level(14.0);
         }
-        viewport.set_zoom_level(14.0);
         return (Some(map), marker_layer);
     }
-    return (None, None); // Can't find source. Check internet access?
+    return (None, None); // Can't find map source. Check internet access?
 }
 
 // Build the map.

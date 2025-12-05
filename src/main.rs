@@ -741,29 +741,36 @@ fn build_da(
 
 // Add a marker layer to the map.
 fn add_marker_layer_to_map(map: &SimpleMap) -> Option<MarkerLayer> {
-    if map.viewport() == None {
-        return None;
+    if map.viewport().is_some() {
+        let viewport = map.viewport().unwrap();
+        let marker_layer = libshumate::MarkerLayer::new(&viewport);
+        map.add_overlay_layer(&marker_layer);
+        return Some(marker_layer.clone());
     }
-    let viewport = map.viewport().unwrap();
-    let marker_layer = libshumate::MarkerLayer::new(&viewport);
-    map.add_overlay_layer(&marker_layer);
-    return Some(marker_layer.clone());
+    return None;
 }
 
 //Adds a PathLayer with a path of given coordinates to the map.
 fn add_path_layer_to_map(map: &SimpleMap, path_points: Vec<(f32, f32)>) {
-    // Define the RGBA color using the builder pattern for gtk4::gdk::RGBA
-    let blue = gdk::RGBA::parse("blue").expect("Failed to parse color");
-    let viewport = map.viewport().expect("No viewport.");
-    let path_layer = PathLayer::new(&viewport);
-    path_layer.set_stroke_color(Some(&blue));
-    path_layer.set_stroke_width(2.0); // Thickness in pixels
-    for (lat, lon) in path_points {
-        let coord = Coordinate::new_full(semi_to_degrees(lat), semi_to_degrees(lon));
-        path_layer.add_node(&coord);
+    if map.viewport().is_some() {
+        let viewport = map.viewport().unwrap();
+        let path_layer = PathLayer::new(&viewport);
+        let result = gdk::RGBA::parse("blue");
+        match result {
+            Ok(_) => {
+                let blue = gdk::RGBA::parse("blue").unwrap();
+                path_layer.set_stroke_color(Some(&blue));
+            }
+            Err(_) => {}
+        }
+        path_layer.set_stroke_width(2.0); // Thickness in pixels
+        for (lat, lon) in path_points {
+            let coord = Coordinate::new_full(semi_to_degrees(lat), semi_to_degrees(lon));
+            path_layer.add_node(&coord);
+        }
+        // Add the layer to the map
+        map.add_overlay_layer(&path_layer);
     }
-    // Add the layer to the map
-    map.add_overlay_layer(&path_layer);
 }
 
 // Helper function to return the date a run started on.

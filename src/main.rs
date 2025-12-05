@@ -14,7 +14,6 @@ use libshumate::{Coordinate, Marker, MarkerLayer, PathLayer, SimpleMap};
 use plotters::prelude::*;
 use plotters::style::full_palette::BROWN;
 use plotters::style::full_palette::CYAN;
-use std::cell::RefCell;
 use std::fs::File;
 use std::io::ErrorKind;
 use std::rc::Rc;
@@ -1508,13 +1507,7 @@ fn build_gui(app: &Application) {
     ui1.btn.connect_clicked(clone!(
         #[strong]
         ui1,
-        // #[strong]
-        // main_pane,
-        // #[strong]
-        // units_widget,
         move |_| {
-            // --- Borrow the inner value MUTABLY (runtime check) ---
-            // let ui = ui_state.borrow();
             // 1. Create the Native Dialog
             // Notice the arguments: Title, Parent Window, Action, Accept Label, Cancel Label
             let native = FileChooserNative::new(
@@ -1527,15 +1520,9 @@ fn build_gui(app: &Application) {
 
             let ui2 = Rc::clone(&ui_rc);
             // 2. Connect to the response signal
-            // let ui_response = Rc::clone(&ui_state);
-            native.connect_response(
-                //clone!(
-                // #[strong]
-                // win,
-                // #[strong]
-                // main_pane,
-                // #[strong]
-                // units_widget,
+            native.connect_response(clone!(
+                #[strong]
+                ui2,
                 move |dialog, response| {
                     // let ui = ui_response.borrow();
                     if response == ResponseType::Accept {
@@ -1577,25 +1564,20 @@ fn build_gui(app: &Application) {
                                         &ui2.units_widget,
                                     );
                                     // Hook-up the units_widget change handler.
-                                    // let data_clone = data.clone();
-                                    // let ui_borrow = ui.borrow();
-                                    // ui_borrow.units_widget.connect_selected_notify(
-                                    //     // clone!(
-                                    //     // #[strong]
-                                    //     // win,
-                                    //     // #[strong]
-                                    //     // main_pane,
-                                    //     // #[strong]
-                                    //     // data,
-                                    //     move |me| {
-                                    //         parse_and_display_run(
-                                    //             &ui.win,
-                                    //             &ui.main_pane,
-                                    //             &data_clone,
-                                    //             &me,
-                                    //         );
-                                    //     },
-                                    // );
+                                    let data_clone = data.clone();
+                                    // let ui3 = Rc::clone(&ui_rc);
+                                    ui2.units_widget.connect_selected_notify(clone!(
+                                        #[strong]
+                                        ui2,
+                                        move |me| {
+                                            parse_and_display_run(
+                                                &ui2.win,
+                                                &ui2.main_pane,
+                                                &data_clone,
+                                                &me,
+                                            );
+                                        },
+                                    ));
                                 }
                             }
                         }
@@ -1606,7 +1588,7 @@ fn build_gui(app: &Application) {
                     // It's good practice to drop references, but GTK handles the cleanup
                     // once it goes out of scope or the window closes.
                 },
-            );
+            ));
             // 3. Show the dialog
             native.show();
         },

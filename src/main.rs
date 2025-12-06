@@ -865,14 +865,14 @@ fn build_map(data: &Vec<FitDataRecord>) -> (Option<SimpleMap>, Option<MarkerLaye
 }
 
 // Build the map.
-fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer: &TextBuffer) {
+fn build_summary(data: &Vec<FitDataRecord>, ui: &UserInterface) {
     // Get the enumerated value for the unit system the user selected.
-    let user_unit = get_unit_system(units_widget);
-    text_buffer.set_text("File loaded.");
+    let user_unit = get_unit_system(&ui.units_widget);
+    ui.text_buffer.set_text("File loaded.");
     // Clear out anything in the buffer.
-    let mut start = text_buffer.start_iter();
-    let mut end = text_buffer.end_iter();
-    text_buffer.delete(&mut start, &mut end);
+    let mut start = ui.text_buffer.start_iter();
+    let mut end = ui.text_buffer.end_iter();
+    ui.text_buffer.delete(&mut start, &mut end);
     let mut lap_index: u8 = 0;
     let mut lap_str: String;
     for item in data {
@@ -881,12 +881,12 @@ fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer
                 // print all the data records in FIT file
                 //println!("{:#?}", item.fields());
                 if item.kind() == MesgNum::Session {
-                    text_buffer.insert(&mut end, "\n");
-                    text_buffer.insert(
+                    ui.text_buffer.insert(&mut end, "\n");
+                    ui.text_buffer.insert(
                         &mut end,
                         "============================ Session ==================================\n",
                     );
-                    text_buffer.insert(&mut end, "\n");
+                    ui.text_buffer.insert(&mut end, "\n");
                 }
                 if item.kind() == MesgNum::Lap {
                     lap_index = lap_index + 1;
@@ -894,9 +894,9 @@ fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer
                         "------------------------------ Lap {}-----------------------------------\n",
                         lap_index
                     );
-                    text_buffer.insert(&mut end, "\n");
-                    text_buffer.insert(&mut end, &lap_str);
-                    text_buffer.insert(&mut end, "\n");
+                    ui.text_buffer.insert(&mut end, "\n");
+                    ui.text_buffer.insert(&mut end, &lap_str);
+                    ui.text_buffer.insert(&mut end, "\n");
                 }
                 // Retrieve the FitDataField struct.
                 for fld in item.fields().iter() {
@@ -911,7 +911,7 @@ fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer
                                     let degrees = semi_to_degrees(semi as f32);
                                     let value_str =
                                         format!("{:<40}: {degrees:<6.3}°\n", fld.name(),);
-                                    text_buffer.insert(&mut end, &value_str);
+                                    ui.text_buffer.insert(&mut end, &value_str);
                                 }
                                 Err(_) => {}
                             }
@@ -939,7 +939,7 @@ fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer
                                 fld.value(),
                                 fld.units()
                             );
-                            text_buffer.insert(&mut end, &value_str);
+                            ui.text_buffer.insert(&mut end, &value_str);
                         }
                         "total_ascent" | "total_descent" => {
                             let result: Result<f64, _> = fld.value().clone().try_into();
@@ -954,7 +954,7 @@ fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer
                                                 val_cvt,
                                                 "feet"
                                             );
-                                            text_buffer.insert(&mut end, &value_str);
+                                            ui.text_buffer.insert(&mut end, &value_str);
                                         }
                                         Units::Metric => {
                                             let value_str = format!(
@@ -963,7 +963,7 @@ fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer
                                                 val_cvt,
                                                 "meters"
                                             );
-                                            text_buffer.insert(&mut end, &value_str);
+                                            ui.text_buffer.insert(&mut end, &value_str);
                                         }
                                         Units::None => {
                                             let value_str = format!(
@@ -972,7 +972,7 @@ fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer
                                                 val_cvt,
                                                 ""
                                             );
-                                            text_buffer.insert(&mut end, &value_str);
+                                            ui.text_buffer.insert(&mut end, &value_str);
                                         }
                                     }
                                 }
@@ -992,7 +992,7 @@ fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer
                                                 val_cvt,
                                                 "miles"
                                             );
-                                            text_buffer.insert(&mut end, &value_str);
+                                            ui.text_buffer.insert(&mut end, &value_str);
                                         }
                                         Units::Metric => {
                                             let value_str = format!(
@@ -1001,7 +1001,7 @@ fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer
                                                 val_cvt,
                                                 "kilometers"
                                             );
-                                            text_buffer.insert(&mut end, &value_str);
+                                            ui.text_buffer.insert(&mut end, &value_str);
                                         }
                                         Units::None => {
                                             let value_str = format!(
@@ -1010,7 +1010,7 @@ fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer
                                                 val_cvt,
                                                 ""
                                             );
-                                            text_buffer.insert(&mut end, &value_str);
+                                            ui.text_buffer.insert(&mut end, &value_str);
                                         }
                                     }
                                 }
@@ -1029,7 +1029,7 @@ fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer
                                         val_cvt.1,
                                         val_cvt.2
                                     );
-                                    text_buffer.insert(&mut end, &value_str);
+                                    ui.text_buffer.insert(&mut end, &value_str);
                                 }
                                 Err(_) => {}
                             }
@@ -1047,7 +1047,7 @@ fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer
                                                 val_cvt,
                                                 "°F"
                                             );
-                                            text_buffer.insert(&mut end, &value_str);
+                                            ui.text_buffer.insert(&mut end, &value_str);
                                         }
                                         Units::Metric => {
                                             let value_str = format!(
@@ -1056,7 +1056,7 @@ fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer
                                                 val_cvt,
                                                 "°C"
                                             );
-                                            text_buffer.insert(&mut end, &value_str);
+                                            ui.text_buffer.insert(&mut end, &value_str);
                                         }
                                         Units::None => {
                                             let value_str = format!(
@@ -1065,7 +1065,7 @@ fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer
                                                 val_cvt,
                                                 ""
                                             );
-                                            text_buffer.insert(&mut end, &value_str);
+                                            ui.text_buffer.insert(&mut end, &value_str);
                                         }
                                     }
                                 }
@@ -1085,7 +1085,7 @@ fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer
                                                 val_cvt,
                                                 "min/mile"
                                             );
-                                            text_buffer.insert(&mut end, &value_str);
+                                            ui.text_buffer.insert(&mut end, &value_str);
                                         }
                                         Units::Metric => {
                                             let value_str = format!(
@@ -1094,7 +1094,7 @@ fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer
                                                 val_cvt,
                                                 "min/km"
                                             );
-                                            text_buffer.insert(&mut end, &value_str);
+                                            ui.text_buffer.insert(&mut end, &value_str);
                                         }
                                         Units::None => {
                                             let value_str = format!(
@@ -1103,7 +1103,7 @@ fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer
                                                 val_cvt,
                                                 ""
                                             );
-                                            text_buffer.insert(&mut end, &value_str);
+                                            ui.text_buffer.insert(&mut end, &value_str);
                                         }
                                     }
                                 }
@@ -1119,12 +1119,12 @@ fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer
     }
     if let (Some(zone_times), Some(zone_limits)) = get_time_in_zone_field(data) {
         // There are 7 zones but only 6 upper limits.
-        text_buffer.insert(&mut end, "\n");
-        text_buffer.insert(
+        ui.text_buffer.insert(&mut end, "\n");
+        ui.text_buffer.insert(
             &mut end,
             "=================== Time in Heart Rate Zones for Session  ========\n",
         );
-        text_buffer.insert(&mut end, "\n");
+        ui.text_buffer.insert(&mut end, "\n");
         for (z, val) in zone_times.iter().enumerate() {
             let val_cvt = cvt_elapsed_time(*val as f32);
             let ll: f64;
@@ -1143,9 +1143,9 @@ fn build_summary(data: &Vec<FitDataRecord>, units_widget: &DropDown, text_buffer
                 "{:<5}{:<} ({:>3}-{:>3} bpm): {:01}h:{:02}m:{:02}s\n",
                 "Zone", z, ll as i32, ul as i32, val_cvt.0, val_cvt.1, val_cvt.2
             );
-            text_buffer.insert(&mut end, &value_str);
+            ui.text_buffer.insert(&mut end, &value_str);
         }
-        text_buffer.insert(&mut end, "\n");
+        ui.text_buffer.insert(&mut end, "\n");
     };
 }
 
@@ -1154,7 +1154,7 @@ fn display_run(ui: &UserInterface, data: &Vec<FitDataRecord>) {
     // 1. Instantiate embedded widgets based on parsed fit data.
     let (shumate_map, shumate_marker_layer) = build_map(&data);
     let da = build_da(&data, &ui);
-    build_summary(&data, &ui.units_widget, &ui.text_buffer);
+    build_summary(&data, &ui);
 
     // 2. Connect embedded widgets to their parents.
     ui.da_window.set_child(Some(&da));
@@ -1162,8 +1162,6 @@ fn display_run(ui: &UserInterface, data: &Vec<FitDataRecord>) {
     if shumate_map.is_some() {
         ui.frame_left.set_child(shumate_map.as_ref());
     }
-    // ui.y_zoom_scale.set_adjustment(&yzm);
-    // ui.curr_pos_scale.set_adjustment(&curr_pos);
 
     // 3. Configure the widget layout.
     ui.left_frame_pane.set_start_child(Some(&ui.frame_left));
